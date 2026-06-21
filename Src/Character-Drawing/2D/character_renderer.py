@@ -9,6 +9,8 @@ import random
 from typing import List, Optional
 from PIL import Image, ImageDraw, ImageTk
 
+from io import BytesIO
+import base64
 # Import drawing modules with fallback
 import sys
 import os
@@ -763,6 +765,7 @@ class CharacterRenderer:
             "colors": skin.get("colors", {}),
             "clothing": skin.get("clothing", {}),
             "accessories": skin.get("accessories", {}),
+            "sprite_data": skin.get("sprite_data", {}),
         }
     
     def _get_skin_colors(self):
@@ -796,6 +799,35 @@ class CharacterRenderer:
         import importlib
         DanceEngine = importlib.import_module('Animations.DanceMoves.dance_engine').DanceEngine
         return DanceEngine.get_params(self)
+    
+    def _draw_msk_sprites(self, draw, cfg):
+        """Draw character using MSK sprite data from Drawer-created skins"""
+        sprite_data = cfg.get("sprite_data", None)
+        if not sprite_data:
+            return None
+        
+        layers = sprite_data.get("layers", {})
+        if not layers:
+            return None
+        
+        layer_order = [
+            "tail", "wings", "legs", "body", "arms", "outfit",
+            "accessories", "head", "hair", "eyes", "mouth",
+            "hat", "glasses",
+        ]
+        
+        composite = Image.new('RGBA', (480, 620), (0, 0, 0, 0))
+        
+        for layer_name in layer_order:
+            if layer_name in layers:
+                try:
+                    layer_data = base64.b64decode(layers[layer_name])
+                    layer_img = Image.open(BytesIO(layer_data)).convert('RGBA')
+                    composite = Image.alpha_composite(composite, layer_img)
+                except Exception:
+                    pass
+        
+        return composite
     
     # ============================================
     # MAIN DRAWING UPDATE
@@ -872,12 +904,19 @@ class CharacterRenderer:
         if self.state == self.DANCE_WATER_SURVIVAL:
             self._draw_water_level(draw, c)
         
-        # Use imported drawing functions
-        if laying_down:
-            draw_laying_character(self, draw, c, cfg, cx, ground_y, body_bob)
+        # Try MSK sprite-based rendering first
+        sprite_composite = self._draw_msk_sprites(draw, cfg)
+        
+        if sprite_composite is not None and not self.state == self.DANCE_WATER_SURVIVAL:
+            # Use sprite-based rendering (from Drawer-created skins)
+            img.paste(sprite_composite, (0, 0), sprite_composite)
         else:
-            draw_standing_character(self, draw, c, cfg, cx, ground_y, leg_swing, arm_swing, 
-                                   body_bob, extra_spin, arm_raise, head_bob, idle_bonus)
+            # Fall back to procedural drawing
+            if laying_down:
+                draw_laying_character(self, draw, c, cfg, cx, ground_y, body_bob)
+            else:
+                draw_standing_character(self, draw, c, cfg, cx, ground_y, leg_swing, arm_swing, 
+                                       body_bob, extra_spin, arm_raise, head_bob, idle_bonus)
         
         # Draw death effects
         if self.is_dead:

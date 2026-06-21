@@ -8,6 +8,7 @@ import sys
 import threading
 import time
 import importlib
+import random
 
 # Add Src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'Src'))
@@ -105,10 +106,144 @@ class MemeBotApp:
         self._auto_counter = 0
         self.is_running = False  # Set to False until start() is called
         
+        # Vocabulary / sentence building
+        self._build_vocabulary()
+        
         # Setup bindings and tray
         self._setup_bindings()
         if HAS_PYSTRAY:
             self.tray = TrayController(self)
+    
+    def _build_vocabulary(self):
+        """Build sentence templates from available voice files"""
+        # All available word files (without extension)
+        self.available_words = []
+        if os.path.exists(self.config.VOICE_PATH):
+            for f in os.listdir(self.config.VOICE_PATH):
+                if f.lower().endswith('.wav'):
+                    word = os.path.splitext(f)[0]
+                    self.available_words.append(word)
+        
+        # Greeting templates using available words
+        self.greetings = [
+            "hello welcome to memebot",
+            "hey whats crackin",
+            "heya friend",
+            "bonjour",
+            "greetings human",
+            "well hello there",
+            "hi hows it going",
+            "hello im back",
+            "hey youre back",
+            "heya whats up",
+            "well hello",
+            "greetings friend",
+            "hi there",
+            "hello human",
+            "hey friend",
+        ]
+        
+        # Random sentence templates
+        self.sentences = [
+            "im so happy today",
+            "what a beautiful day",
+            "ive been waiting for you",
+            "im ready for anything",
+            "thats what im talking about",
+            "you see that",
+            "watch me",
+            "looking good today",
+            "some fun for you",
+            "im going to have fun",
+            "well thats beautiful",
+            "so happy to see you",
+            "whats going on today",
+            "im ready for fun",
+            "thats beautiful",
+            "looking for fun",
+            "ive been waiting",
+            "watch this",
+            "you see me",
+            "what a day",
+        ]
+        
+        # Reaction sentences for memes
+        self.meme_reactions = [
+            "watch this meme",
+            "thats so funny",
+            "im ready for this",
+            "you see that meme",
+            "what a meme",
+            "looking good meme",
+            "ive been waiting for this",
+            "some fun meme",
+            "whats this meme",
+            "watch me meme",
+        ]
+        
+        # Reaction sentences for videos
+        self.video_reactions = [
+            "watch this video",
+            "im ready for video",
+            "you see that video",
+            "looking good video",
+            "what a video",
+            "ive been waiting for video",
+            "some fun video",
+            "watch me video",
+        ]
+        
+        # Reaction sentences for GIFs
+        self.gif_reactions = [
+            "watch this gif",
+            "thats so funny gif",
+            "you see that gif",
+            "looking good gif",
+            "what a gif",
+            "some fun gif",
+            "watch me gif",
+        ]
+        
+        # Random idle chatter
+        self.idle_chatter = [
+            "im so happy",
+            "what a beautiful day",
+            "ive been waiting",
+            "im ready for anything",
+            "looking good",
+            "some fun today",
+            "well hello",
+            "so happy",
+            "whats going on",
+            "thats beautiful",
+        ]
+    
+    def _speak_sentence(self, sentence: str):
+        """Speak a sentence word by word using available voice files"""
+        words = sentence.split()
+        spoken_words = []
+        
+        for word in words:
+            if word in self.available_words:
+                spoken_words.append(word)
+                voice_file = self.voice_manager.get_file(word)
+                if voice_file:
+                    self.audio_player.play(voice_file)
+                    time.sleep(0.3)  # Small gap between words
+        
+        return " ".join(spoken_words)
+    
+    def _speak_sentence_async(self, sentence: str):
+        """Speak a sentence asynchronously in a thread"""
+        def speak_thread():
+            words = sentence.split()
+            for word in words:
+                if word in self.available_words and self.is_running:
+                    voice_file = self.voice_manager.get_file(word)
+                    if voice_file:
+                        self.audio_player.play(voice_file)
+                        time.sleep(0.35)
+        threading.Thread(target=speak_thread, daemon=True).start()
     
     def _setup_bindings(self):
         """Setup all keyboard and mouse bindings"""
@@ -125,6 +260,8 @@ class MemeBotApp:
         self.root.bind('<space>', lambda e: self.toggle_auto_play())
         self.root.bind('x', lambda e: self.toggle_auto_play())
         self.root.bind('<Control-m>', lambda e: self.mod_menu.toggle())
+        self.root.bind('t', lambda e: self.say_random_sentence())
+        self.root.bind('y', lambda e: self.say_random_chatter())
         
         # Addon/Extension keys
         self.root.bind('<Control-a>', lambda e: self._toggle_addons())
@@ -160,14 +297,28 @@ class MemeBotApp:
                         self.root.after(0, self.play_random_meme)
         threading.Thread(target=loop, daemon=True).start()
     
+    def _schedule_idle_chatter(self, interval=30):
+        """Schedule random idle chatter"""
+        def loop():
+            while self.is_running:
+                time.sleep(1)
+                if self.is_running and self.character.state == "idle":
+                    self._auto_counter += 1
+                    if self._auto_counter >= interval:
+                        self._auto_counter = 0
+                        self.root.after(0, self.say_random_chatter)
+        threading.Thread(target=loop, daemon=True).start()
+    
     def _startup_greeting(self):
-        """Play startup greeting"""
+        """Play startup greeting with random sentence"""
         self.character.state = "waving"
         self.character.add_particle(240, 300, "sparkle", 10)
-        if self.voice_manager.get_file("hello"):
-            self.say("hello")
-        elif self.voice_manager.get_file("hi"):
-            self.say("hi")
+        
+        # Pick random greeting
+        greeting = random.choice(self.greetings)
+        self.character.say(greeting)
+        self._speak_sentence_async(greeting)
+        
         self.root.after(2000, lambda: setattr(self.character, 'state', 'idle'))
     
     def _toggle_addons(self):
@@ -227,6 +378,10 @@ class MemeBotApp:
         self.play_random_sound()
         self.character.state = "bouncing"
         self.character.add_particle(event.x, event.y, "music", 5)
+        # Say random sentence on right click
+        sentence = random.choice(self.sentences)
+        self.character.say(sentence)
+        self._speak_sentence_async(sentence)
         self.root.after(1000, lambda: setattr(self.character, 'state', 'idle'))
     
     # ============================================
@@ -234,46 +389,85 @@ class MemeBotApp:
     # ============================================
     
     def say(self, text: str):
+        """Display text without speaking"""
         self.character.say(text)
         self.character.is_talking = True
-        self.voice_manager.speak(text, self.audio_player)
         self.root.after(2000, lambda: setattr(self.character, 'is_talking', False))
     
+    def say_and_speak(self, text: str):
+        """Display text AND speak it"""
+        self.character.say(text)
+        self.character.is_talking = True
+        self._speak_sentence_async(text)
+        self.root.after(3000, lambda: setattr(self.character, 'is_talking', False))
+    
     def say_hello(self):
-        self.say("hello welcome to memebot")
+        """Say a random greeting"""
+        greeting = random.choice(self.greetings)
+        self.say_and_speak(greeting)
+    
+    def say_random_sentence(self):
+        """Say a random sentence"""
+        sentence = random.choice(self.sentences)
+        self.say_and_speak(sentence)
+    
+    def say_random_chatter(self):
+        """Say random idle chatter"""
+        if self.character.state == "idle" or self.character.state == "walking":
+            chatter = random.choice(self.idle_chatter)
+            self.say_and_speak(chatter)
     
     def play_random_meme(self):
+        """Play a random meme with voice reaction"""
         self.character.set_dance("dancing")
         self.character.emotion = "happy"
-        self.character.say("Meme time!")
         self.character.add_particle(self.character.x, self.character.y - 100, "sparkle", 10)
         self.character.add_particle(self.character.x, self.character.y - 100, "music", 5)
+        
+        # Random meme reaction
+        reaction = random.choice(self.meme_reactions)
+        self.character.say(reaction)
+        self._speak_sentence_async(reaction)
+        
         result = self.media_manager.play_random_meme()
         if not result:
             self.character.say("No memes found!")
         self.root.after(4000, lambda: setattr(self.character, 'state', 'idle'))
     
     def play_random_sound(self):
+        """Play a random sound effect"""
         self.media_manager.play_random_sound()
     
     def play_random_video(self):
+        """Play a random video with voice reaction"""
         video = self.media_manager.play_random_video(show_window=True)
         if video:
             self.character.state = "video_dancing"
-            self.character.say("Video time!")
             self.character.video_playing = True
             self.character.add_particle(self.character.x, self.character.y - 100, "sparkle", 12)
+            
+            # Random video reaction
+            reaction = random.choice(self.video_reactions)
+            self.character.say(reaction)
+            self._speak_sentence_async(reaction)
+            
             self.video_player.show(str(video), self.character.x, self.character.y)
         else:
             self.character.say("No videos found!")
         self.root.after(4000, lambda: setattr(self.character, 'state', 'idle'))
     
     def play_random_gif(self):
+        """Play a random GIF with voice reaction"""
         gif = self.media_manager.play_random_gif()
         if gif:
             self.character.state = "dancing"
-            self.character.say("GIF time!")
             self.character.add_particle(self.character.x, self.character.y - 100, "sparkle", 8)
+            
+            # Random GIF reaction
+            reaction = random.choice(self.gif_reactions)
+            self.character.say(reaction)
+            self._speak_sentence_async(reaction)
+            
             self.gif_player.show(str(gif), self.character.x, self.character.y)
         else:
             self.character.say("No GIFs found!")
@@ -309,8 +503,15 @@ class MemeBotApp:
                                        setattr(self.character, 'video_playing', False)])
     
     def toggle_auto_play(self):
+        """Toggle auto-play on/off"""
         self.auto_play_paused = not self.auto_play_paused
-        self.character.say("Auto-play OFF" if self.auto_play_paused else "Auto-play ON")
+        status = "OFF" if self.auto_play_paused else "ON"
+        self.character.say(f"Auto-play {status}")
+        # Say it with voice too
+        if not self.auto_play_paused:
+            self._speak_sentence_async("im ready for anything")
+        else:
+            self._speak_sentence_async("well see you later")
         self._auto_counter = 0
     
     # ============================================
@@ -331,6 +532,7 @@ class MemeBotApp:
         print("  Ctrl+A = Toggle Addons")
         print("  Ctrl+E = Toggle Extensions")
         print("  M=meme  V=video  G=GIF  H=hello")
+        print("  T=random sentence  Y=chatter")
         print("  Dance: 1=worm 2=moonwalk 3=thriller 4=robot 5=disco")
         print("  Water Survival: W (avoid rising water & meteors!)")
         print("  Space/X = Toggle auto-play")
@@ -341,6 +543,9 @@ class MemeBotApp:
         interval = self.config.get("auto_play_interval", 15)
         if interval > 0:
             self._schedule_auto_play(interval)
+        
+        # Start idle chatter
+        self._schedule_idle_chatter(45)
         
         # Start animation
         self._animate()
@@ -400,6 +605,7 @@ def main():
     print("  Extension system (Python) - Ctrl+E")
     print("  Circular mod menu (Ctrl+M)")
     print("  Water Survival mini-game (W)")
+    print("  Voice vocabulary system with 45+ words")
     print("=" * 60)
     print()
     
