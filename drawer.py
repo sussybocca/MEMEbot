@@ -11,7 +11,7 @@ import json
 import base64
 import logging
 import tkinter as tk
-from tkinter import ttk, colorchooser, filedialog, messagebox
+from tkinter import ttk, colorchooser, filedialog, messagebox, simpledialog
 from pathlib import Path
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageTk
@@ -29,7 +29,7 @@ class DrawerApp:
     
     Features:
     - Layer-based drawing system with 13 body part layers
-    - 7 drawing tools: pencil, eraser, fill, line, rectangle, ellipse, color picker
+    - 10 drawing tools: pencil, eraser, fill, line, rectangle, ellipse, color picker, spray, text, eyedropper
     - Custom color picker with 16 quick color presets
     - Adjustable brush size (1-20 pixels)
     - Real-time preview on character template overlay
@@ -37,6 +37,9 @@ class DrawerApp:
     - Undo/Redo with 50 state history
     - Export to .MSK SK3 encrypted format
     - Load existing .MSK files for editing
+    - Custom skin name, author, version, and description
+    - Custom animation frame editor
+    - Decrypt and view raw MSK JSON data
     """
     
     TOOL_PENCIL = "pencil"
@@ -46,6 +49,9 @@ class DrawerApp:
     TOOL_RECTANGLE = "rectangle"
     TOOL_ELLIPSE = "ellipse"
     TOOL_PICKER = "color_picker"
+    TOOL_SPRAY = "spray"
+    TOOL_TEXT = "text"
+    TOOL_EYEDROPPER = "eyedropper"
     
     LAYER_BODY = "body"
     LAYER_HEAD = "head"
@@ -67,7 +73,7 @@ class DrawerApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("MEMEBOT Drawer - Community Skin Creator")
-        self.root.geometry("1200x800")
+        self.root.geometry("1300x850")
         self.root.configure(bg='#1a1a2e')
         
         self.encryptor = SkinEncryptor()
@@ -95,6 +101,15 @@ class DrawerApp:
         
         self.msk_data = None
         self.current_file = None
+        self.skin_name = "Custom Skin"
+        self.skin_author = "MEMEBOT User"
+        self.skin_version = "1.0"
+        self.skin_description = "A custom MEMEBOT skin"
+        
+        # Animation frames storage
+        self.animation_frames = {}
+        self.current_animation = "idle"
+        self.current_frame = 0
         
         self._init_layers()
         self._build_ui()
@@ -118,7 +133,8 @@ class DrawerApp:
         main_frame = tk.Frame(self.root, bg='#1a1a2e')
         main_frame.pack(fill='both', expand=True, padx=5, pady=5)
         
-        left_panel = tk.Frame(main_frame, bg='#16213e', width=200)
+        # Left panel - Tools
+        left_panel = tk.Frame(main_frame, bg='#16213e', width=220)
         left_panel.pack(side='left', fill='y', padx=(0, 5))
         left_panel.pack_propagate(False)
         
@@ -133,6 +149,9 @@ class DrawerApp:
             (self.TOOL_RECTANGLE, "⬜ Rectangle"),
             (self.TOOL_ELLIPSE, "⚪ Ellipse"),
             (self.TOOL_PICKER, "💉 Color Picker"),
+            (self.TOOL_SPRAY, "🎨 Spray"),
+            (self.TOOL_TEXT, "🔤 Text"),
+            (self.TOOL_EYEDROPPER, "💧 Eyedropper"),
         ]
         for tool_id, tool_name in tools:
             btn = tk.Button(left_panel, text=tool_name, font=('Arial', 10),
@@ -177,6 +196,27 @@ class DrawerApp:
                           command=lambda c=qc: self._set_quick_color(c))
             btn.grid(row=row, column=col, padx=1, pady=1)
         
+        # Skin metadata fields
+        tk.Label(left_panel, text="SKIN METADATA", font=('Arial', 10, 'bold'),
+                bg='#16213e', fg='#e94560').pack(pady=(15, 5))
+        
+        metadata_fields = [
+            ("Name:", "skin_name"),
+            ("Author:", "skin_author"),
+            ("Version:", "skin_version"),
+            ("Desc:", "skin_description"),
+        ]
+        for label_text, attr_name in metadata_fields:
+            tk.Label(left_panel, text=label_text, font=('Arial', 9),
+                    bg='#16213e', fg='#aaa').pack(anchor='w', padx=10)
+            entry = tk.Entry(left_panel, font=('Arial', 9), bg='#0f3460', fg='white',
+                           insertbackground='white', relief='flat')
+            entry.insert(0, getattr(self, attr_name))
+            entry.pack(fill='x', padx=10, pady=1)
+            entry.bind('<KeyRelease>', lambda e, a=attr_name, ent=entry: setattr(self, a, ent.get()))
+            setattr(self, f"{attr_name}_entry", entry)
+        
+        # Center panel - Canvas
         center_panel = tk.Frame(main_frame, bg='#1a1a2e')
         center_panel.pack(side='left', fill='both', expand=True)
         
@@ -194,7 +234,8 @@ class DrawerApp:
                                     font=('Arial', 9), bg='#1a1a2e', fg='#888')
         self.coord_label.pack()
         
-        right_panel = tk.Frame(main_frame, bg='#16213e', width=200)
+        # Right panel - Layers and Animation
+        right_panel = tk.Frame(main_frame, bg='#16213e', width=220)
         right_panel.pack(side='right', fill='y', padx=(5, 0))
         right_panel.pack_propagate(False)
         
@@ -202,7 +243,7 @@ class DrawerApp:
                 bg='#16213e', fg='#e94560').pack(pady=5)
         
         self.layer_frame = tk.Frame(right_panel, bg='#16213e')
-        self.layer_frame.pack(fill='both', expand=True, padx=5)
+        self.layer_frame.pack(fill='both', expand=False, padx=5)
         
         layer_display_names = {
             self.LAYER_BODY: "Body", self.LAYER_HEAD: "Head",
@@ -228,6 +269,39 @@ class DrawerApp:
             btn.pack(side='left', fill='x', expand=True)
             self.layer_buttons[layer_name] = (btn, vis_btn)
         
+        # Animation panel
+        tk.Label(right_panel, text="ANIMATIONS", font=('Arial', 12, 'bold'),
+                bg='#16213e', fg='#e94560').pack(pady=(15, 5))
+        
+        anim_frame = tk.Frame(right_panel, bg='#16213e')
+        anim_frame.pack(fill='x', padx=5)
+        
+        self.anim_var = tk.StringVar(value="idle")
+        anim_options = ["idle", "walking", "running", "dancing", "waving", "bouncing"]
+        self.anim_menu = ttk.Combobox(anim_frame, textvariable=self.anim_var,
+                                      values=anim_options, state='readonly', width=15)
+        self.anim_menu.pack(side='left', padx=2)
+        self.anim_menu.bind('<<ComboboxSelected>>', self._on_animation_change)
+        
+        frame_controls = tk.Frame(right_panel, bg='#16213e')
+        frame_controls.pack(fill='x', padx=5, pady=5)
+        
+        tk.Button(frame_controls, text="◀", font=('Arial', 8), bg='#0f3460', fg='white',
+                 command=self._prev_frame).pack(side='left', padx=1)
+        self.frame_label = tk.Label(frame_controls, text="Frame: 0", font=('Arial', 9),
+                                    bg='#16213e', fg='white')
+        self.frame_label.pack(side='left', padx=5)
+        tk.Button(frame_controls, text="▶", font=('Arial', 8), bg='#0f3460', fg='white',
+                 command=self._next_frame).pack(side='left', padx=1)
+        
+        tk.Button(right_panel, text="+ Add Frame", font=('Arial', 9), bg='#0f3460', fg='white',
+                 command=self._add_animation_frame).pack(fill='x', padx=5, pady=2)
+        tk.Button(right_panel, text="▶ Play Animation", font=('Arial', 9), bg='#0f3460', fg='white',
+                 command=self._play_animation).pack(fill='x', padx=5, pady=2)
+        tk.Button(right_panel, text="📋 Copy Frame", font=('Arial', 9), bg='#0f3460', fg='white',
+                 command=self._copy_frame).pack(fill='x', padx=5, pady=2)
+        
+        # Template toggle
         tk.Label(right_panel, text="TEMPLATE", font=('Arial', 10, 'bold'),
                 bg='#16213e', fg='#e94560').pack(pady=(10, 5))
         self.template_var = tk.BooleanVar(value=True)
@@ -235,6 +309,7 @@ class DrawerApp:
                       bg='#16213e', fg='white', selectcolor='#0f3460',
                       command=self._update_canvas).pack()
         
+        # Bottom bar - Actions
         bottom_bar = tk.Frame(self.root, bg='#16213e', height=50)
         bottom_bar.pack(fill='x', side='bottom')
         bottom_bar.pack_propagate(False)
@@ -249,6 +324,7 @@ class DrawerApp:
             ("Redo", self._redo),
             ("Preview", self._preview_skin),
             ("Compile MSK", self._compile_msk),
+            ("Decrypt MSK", self._decrypt_msk),
         ]
         for action_name, action_cmd in actions:
             btn = tk.Button(bottom_bar, text=action_name, font=('Arial', 10),
@@ -316,9 +392,33 @@ class DrawerApp:
             self._init_layers()
             self.msk_data = None
             self.current_file = None
+            self.skin_name = "Custom Skin"
+            self.skin_author = "MEMEBOT User"
+            self.skin_version = "1.0"
+            self.skin_description = "A custom MEMEBOT skin"
+            self.animation_frames = {}
+            self.current_animation = "idle"
+            self.current_frame = 0
+            self._update_metadata_entries()
             self.undo_stack.clear()
             self.redo_stack.clear()
             self._update_canvas()
+            self._update_frame_label()
+    
+    def _update_metadata_entries(self):
+        """Update all metadata entry fields with current values"""
+        if hasattr(self, 'skin_name_entry'):
+            self.skin_name_entry.delete(0, tk.END)
+            self.skin_name_entry.insert(0, self.skin_name)
+        if hasattr(self, 'skin_author_entry'):
+            self.skin_author_entry.delete(0, tk.END)
+            self.skin_author_entry.insert(0, self.skin_author)
+        if hasattr(self, 'skin_version_entry'):
+            self.skin_version_entry.delete(0, tk.END)
+            self.skin_version_entry.insert(0, self.skin_version)
+        if hasattr(self, 'skin_description_entry'):
+            self.skin_description_entry.delete(0, tk.END)
+            self.skin_description_entry.insert(0, self.skin_description)
     
     def _load_msk(self):
         file_path = filedialog.askopenfilename(
@@ -329,8 +429,14 @@ class DrawerApp:
             self.msk_data = self.encryptor.load_skin_file(Path(file_path))
             if self.msk_data:
                 self.current_file = file_path
+                self.skin_name = self.msk_data.get('name', 'Custom Skin')
+                self.skin_author = self.msk_data.get('author', 'MEMEBOT User')
+                self.skin_version = self.msk_data.get('version', '1.0')
+                self.skin_description = self.msk_data.get('description', '')
+                self.animation_frames = self.msk_data.get('animation_frames', {})
+                self._update_metadata_entries()
                 self._apply_msk_to_layers()
-                messagebox.showinfo("Loaded", f"Skin loaded: {self.msk_data.get('name', 'Unknown')}")
+                messagebox.showinfo("Loaded", f"Skin loaded: {self.skin_name}")
             else:
                 messagebox.showerror("Error", "Failed to load skin file!")
     
@@ -355,10 +461,13 @@ class DrawerApp:
             filetypes=[("MSK files", "*.msk"), ("All files", "*.*")]
         )
         if file_path:
+            skin_name = os.path.splitext(os.path.basename(file_path))[0]
+            self.skin_name = skin_name
+            self._update_metadata_entries()
             skin_data = self._compile_skin_data()
             if self.encryptor.save_skin_file(Path(file_path), skin_data):
                 self.current_file = file_path
-                messagebox.showinfo("Saved", "Skin saved successfully!")
+                messagebox.showinfo("Saved", f"Skin '{skin_name}' saved successfully!")
             else:
                 messagebox.showerror("Error", "Failed to save skin!")
     
@@ -369,11 +478,55 @@ class DrawerApp:
             filetypes=[("MSK files", "*.msk"), ("All files", "*.*")]
         )
         if file_path:
+            skin_name = os.path.splitext(os.path.basename(file_path))[0]
+            self.skin_name = skin_name
+            self._update_metadata_entries()
             skin_data = self._compile_skin_data()
             if self.encryptor.save_skin_file(Path(file_path), skin_data):
-                messagebox.showinfo("Compiled", f"Skin compiled and encrypted!\nSaved to: {file_path}")
+                messagebox.showinfo("Compiled", f"Skin '{skin_name}' compiled and encrypted!\nSaved to: {file_path}")
             else:
                 messagebox.showerror("Error", "Failed to compile skin!")
+    
+    def _decrypt_msk(self):
+        """Open and display decrypted MSK JSON data"""
+        file_path = filedialog.askopenfilename(
+            title="Open MSK to Decrypt",
+            filetypes=[("MSK files", "*.msk"), ("All files", "*.*")]
+        )
+        if file_path:
+            skin_data = self.encryptor.load_skin_file(Path(file_path))
+            if skin_data:
+                # Remove binary sprite data for readability
+                display_data = dict(skin_data)
+                if 'sprite_data' in display_data and 'layers' in display_data['sprite_data']:
+                    display_data['sprite_data']['layers'] = {
+                        k: f"<base64 PNG data: {len(v)} chars>" 
+                        for k, v in display_data['sprite_data']['layers'].items()
+                    }
+                if 'lua_script' in display_data:
+                    display_data['lua_script'] = f"<Lua script: {len(display_data['lua_script'])} chars>"
+                
+                json_str = json.dumps(display_data, indent=2)
+                
+                # Show in a new window
+                decrypt_window = tk.Toplevel(self.root)
+                decrypt_window.title(f"Decrypted: {os.path.basename(file_path)}")
+                decrypt_window.geometry("600x500")
+                decrypt_window.configure(bg='#1a1a2e')
+                
+                text_widget = tk.Text(decrypt_window, bg='#0a0a1a', fg='#e0e0e0',
+                                     font=('Consolas', 10), wrap='word')
+                text_widget.pack(fill='both', expand=True, padx=5, pady=5)
+                text_widget.insert('1.0', json_str)
+                text_widget.config(state='disabled')
+                
+                # Add scrollbar
+                scrollbar = tk.Scrollbar(text_widget)
+                scrollbar.pack(side='right', fill='y')
+                text_widget.config(yscrollcommand=scrollbar.set)
+                scrollbar.config(command=text_widget.yview)
+            else:
+                messagebox.showerror("Error", "Failed to decrypt skin file!")
     
     def _compile_skin_data(self) -> Dict[str, Any]:
         layer_data = {}
@@ -383,15 +536,16 @@ class DrawerApp:
             layer_data[name] = base64.b64encode(buffer.getvalue()).decode('utf-8')
         
         return {
-            "name": "Custom Skin",
-            "version": "4.0",
-            "author": "MEMEBOT Drawer User",
-            "description": "Skin created with MEMEBOT Drawer",
+            "name": self.skin_name,
+            "version": self.skin_version,
+            "author": self.skin_author,
+            "description": self.skin_description,
             "encryption": "SK3-Enhanced",
             "sprite_data": {
                 "canvas_size": [self.CANVAS_WIDTH, self.CANVAS_HEIGHT],
                 "layers": layer_data,
             },
+            "animation_frames": self.animation_frames,
             "body_scale": {"height": 1.0, "width": 1.0, "head_size": 1.0, "limb_length": 1.0},
             "body_shape": {"type": "default", "torso_width": 1.0, "torso_height": 1.0, "belly_size": 0.0, "shoulder_width": 1.0, "hip_width": 1.0, "custom_points": []},
             "limbs": {"arm_style": "default", "arm_length": 1.0, "arm_width": 1.0, "leg_style": "default", "leg_length": 1.0, "leg_width": 1.0, "hand_style": "default", "foot_style": "default"},
@@ -448,6 +602,171 @@ class DrawerApp:
         label.image = preview_tk
         label.pack()
     
+    # ============================================
+    # ANIMATION FRAME EDITOR
+    # ============================================
+    
+    def _on_animation_change(self, event=None):
+        """Switch to a different animation"""
+        self.current_animation = self.anim_var.get()
+        self.current_frame = 0
+        if self.current_animation not in self.animation_frames:
+            self.animation_frames[self.current_animation] = []
+        self._update_frame_label()
+        self._load_current_frame()
+    
+    def _prev_frame(self):
+        if self.current_frame > 0:
+            self._save_current_frame()
+            self.current_frame -= 1
+            self._load_current_frame()
+            self._update_frame_label()
+    
+    def _next_frame(self):
+        anim_frames = self.animation_frames.get(self.current_animation, [])
+        if self.current_frame < len(anim_frames) - 1:
+            self._save_current_frame()
+            self.current_frame += 1
+            self._load_current_frame()
+            self._update_frame_label()
+    
+    def _add_animation_frame(self):
+        """Add a new blank frame to the current animation"""
+        anim_frames = self.animation_frames.get(self.current_animation, [])
+        if self.current_animation not in self.animation_frames:
+            self.animation_frames[self.current_animation] = []
+        
+        # Save current frame first
+        self._save_current_frame()
+        
+        # Create new blank frame
+        new_frame = {}
+        for name in self.layers:
+            buffer = BytesIO()
+            blank = Image.new('RGBA', (self.CANVAS_WIDTH, self.CANVAS_HEIGHT), (0, 0, 0, 0))
+            blank.save(buffer, format='PNG')
+            new_frame[name] = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        
+        self.animation_frames[self.current_animation].append(new_frame)
+        self.current_frame = len(self.animation_frames[self.current_animation]) - 1
+        self._load_current_frame()
+        self._update_frame_label()
+    
+    def _copy_frame(self):
+        """Copy the current frame and add it as a new frame"""
+        anim_frames = self.animation_frames.get(self.current_animation, [])
+        if self.current_animation not in self.animation_frames:
+            self.animation_frames[self.current_animation] = []
+        
+        self._save_current_frame()
+        
+        # Copy current layers
+        new_frame = {}
+        for name, layer_img in self.layers.items():
+            buffer = BytesIO()
+            layer_img.save(buffer, format='PNG')
+            new_frame[name] = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        
+        self.animation_frames[self.current_animation].append(new_frame)
+        self.current_frame = len(self.animation_frames[self.current_animation]) - 1
+        self._update_frame_label()
+    
+    def _save_current_frame(self):
+        """Save current layers to the current animation frame"""
+        anim_frames = self.animation_frames.get(self.current_animation, [])
+        if self.current_animation not in self.animation_frames:
+            self.animation_frames[self.current_animation] = []
+        
+        frame_data = {}
+        for name, layer_img in self.layers.items():
+            buffer = BytesIO()
+            layer_img.save(buffer, format='PNG')
+            frame_data[name] = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        
+        if self.current_frame < len(anim_frames):
+            anim_frames[self.current_frame] = frame_data
+        else:
+            anim_frames.append(frame_data)
+        
+        self.animation_frames[self.current_animation] = anim_frames
+    
+    def _load_current_frame(self):
+        """Load the current animation frame into layers"""
+        anim_frames = self.animation_frames.get(self.current_animation, [])
+        if self.current_frame < len(anim_frames):
+            frame_data = anim_frames[self.current_frame]
+            self._init_layers()
+            for name, layer_b64 in frame_data.items():
+                if name in self.layers:
+                    try:
+                        layer_bytes = base64.b64decode(layer_b64)
+                        self.layers[name] = Image.open(BytesIO(layer_bytes)).convert('RGBA')
+                    except Exception:
+                        pass
+        else:
+            self._init_layers()
+        self._update_canvas()
+    
+    def _update_frame_label(self):
+        anim_frames = self.animation_frames.get(self.current_animation, [])
+        total = max(len(anim_frames), 1)
+        self.frame_label.config(text=f"Frame: {self.current_frame}/{total - 1 if total > 1 else 0}")
+    
+    def _play_animation(self):
+        """Play the current animation in a preview loop"""
+        anim_frames = self.animation_frames.get(self.current_animation, [])
+        if len(anim_frames) < 2:
+            messagebox.showinfo("Animation", "Add at least 2 frames to play an animation.")
+            return
+        
+        self._save_current_frame()
+        
+        preview_window = tk.Toplevel(self.root)
+        preview_window.title(f"Animation: {self.current_animation}")
+        preview_window.geometry(f"{self.CANVAS_WIDTH}x{self.CANVAS_HEIGHT}")
+        preview_window.configure(bg='#0a0a1a')
+        
+        preview_label = tk.Label(preview_window, bg='#0a0a1a')
+        preview_label.pack()
+        
+        playing = [True]
+        frame_idx = [0]
+        
+        def update_frame():
+            if not playing[0] or not preview_window.winfo_exists():
+                return
+            
+            frame_data = anim_frames[frame_idx[0]]
+            composite = Image.new('RGBA', (self.CANVAS_WIDTH, self.CANVAS_HEIGHT), (0, 0, 0, 0))
+            layer_order = [
+                self.LAYER_TAIL, self.LAYER_WINGS, self.LAYER_LEGS, self.LAYER_BODY,
+                self.LAYER_ARMS, self.LAYER_OUTFIT, self.LAYER_ACCESSORIES,
+                self.LAYER_HEAD, self.LAYER_HAIR, self.LAYER_EYES, self.LAYER_MOUTH,
+                self.LAYER_HAT, self.LAYER_GLASSES,
+            ]
+            for name in layer_order:
+                if name in frame_data:
+                    try:
+                        layer_bytes = base64.b64decode(frame_data[name])
+                        layer_img = Image.open(BytesIO(layer_bytes)).convert('RGBA')
+                        composite = Image.alpha_composite(composite, layer_img)
+                    except Exception:
+                        pass
+            
+            preview_tk = ImageTk.PhotoImage(composite)
+            preview_label.config(image=preview_tk)
+            preview_label.image = preview_tk
+            
+            frame_idx[0] = (frame_idx[0] + 1) % len(anim_frames)
+            preview_window.after(100, update_frame)
+        
+        preview_window.protocol("WM_DELETE_WINDOW", lambda: [playing.__setitem__(0, False), preview_window.destroy()])
+        update_frame()
+    
+    # ============================================
+    # DRAWING METHODS
+    # ============================================
+    
     def _load_template(self):
         self.template_image = Image.new('RGBA', (self.CANVAS_WIDTH, self.CANVAS_HEIGHT), (0, 0, 0, 0))
         td = ImageDraw.Draw(self.template_image)
@@ -489,6 +808,18 @@ class DrawerApp:
             self._update_canvas()
         elif self.current_tool == self.TOOL_PICKER:
             self._pick_color(event.x, event.y)
+        elif self.current_tool == self.TOOL_EYEDROPPER:
+            self._pick_color(event.x, event.y)
+            self.current_tool = self.TOOL_PENCIL
+        elif self.current_tool == self.TOOL_TEXT:
+            self._save_undo_state()
+            text = simpledialog.askstring("Text", "Enter text:", parent=self.root)
+            if text:
+                self._draw_text(event.x, event.y, text)
+            self._update_canvas()
+        elif self.current_tool == self.TOOL_SPRAY:
+            self._save_undo_state()
+            self._spray(event.x, event.y)
         elif self.current_tool in [self.TOOL_PENCIL, self.TOOL_ERASER]:
             self._save_undo_state()
             self._draw_point(event.x, event.y)
@@ -496,7 +827,9 @@ class DrawerApp:
     def _on_mouse_drag(self, event):
         if not self.drawing:
             return
-        if self.current_tool in [self.TOOL_PENCIL, self.TOOL_ERASER]:
+        if self.current_tool == self.TOOL_SPRAY:
+            self._spray(event.x, event.y)
+        elif self.current_tool in [self.TOOL_PENCIL, self.TOOL_ERASER]:
             self._draw_line(self.last_x, self.last_y, event.x, event.y)
         self.last_x = event.x
         self.last_y = event.y
@@ -540,6 +873,21 @@ class DrawerApp:
         draw = ImageDraw.Draw(self.layers[self.current_layer])
         draw.ellipse([min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)], fill=self.current_color)
     
+    def _draw_text(self, x: int, y: int, text: str):
+        draw = ImageDraw.Draw(self.layers[self.current_layer])
+        try:
+            font = ImageFont.truetype("arial.ttf", self.brush_size * 4)
+        except:
+            font = ImageFont.load_default()
+        draw.text((x, y), text, fill=self.current_color, font=font)
+    
+    def _spray(self, x: int, y: int):
+        draw = ImageDraw.Draw(self.layers[self.current_layer])
+        for _ in range(self.brush_size * 3):
+            sx = x + random.randint(-self.brush_size * 3, self.brush_size * 3)
+            sy = y + random.randint(-self.brush_size * 3, self.brush_size * 3)
+            draw.point((sx, sy), fill=self.current_color)
+    
     def _flood_fill(self, x: int, y: int):
         draw = ImageDraw.Draw(self.layers[self.current_layer])
         draw.ellipse([0, 0, self.CANVAS_WIDTH, self.CANVAS_HEIGHT], fill=self.current_color)
@@ -564,11 +912,15 @@ def main():
     print("=" * 60)
     print("  Draw custom characters and accessories")
     print("  Layer-based editing with 13 body part layers")
-    print("  7 drawing tools: pencil, eraser, fill, line, rect, ellipse, picker")
+    print("  10 drawing tools: pencil, eraser, fill, line, rect, ellipse,")
+    print("     color picker, spray, text, eyedropper")
     print("  Import PNG sprites for custom accessories")
+    print("  Custom animation frame editor (idle, walk, run, dance, etc.)")
     print("  Undo/Redo with 50 state history")
     print("  Export to .MSK SK3 encrypted format")
     print("  Load existing .MSK files for editing")
+    print("  Decrypt and view MSK JSON data")
+    print("  Custom skin name, author, version, description")
     print("=" * 60)
     print()
     app = DrawerApp()
