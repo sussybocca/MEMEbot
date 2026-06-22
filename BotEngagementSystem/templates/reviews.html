@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEMEBOT Engagement - Reviews</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dashboard-page">
+    <nav class="top-nav">
+        <div class="nav-brand">
+            <span class="nav-logo">🎭</span>
+            <span class="nav-title">MEMEBOT Engagement</span>
+        </div>
+        <div class="nav-links">
+            <a href="/dashboard" class="nav-link">Dashboard</a>
+            <a href="/upload" class="nav-link">Upload Skin</a>
+            <span class="nav-user">👤 {{ username }}</span>
+            <a href="/logout" class="nav-link logout">Sign Out</a>
+        </div>
+    </nav>
+    
+    <div class="dashboard-container">
+        <a href="/dashboard" class="back-link">← Back to Dashboard</a>
+        
+        <div class="submission-detail-header">
+            <h1>{{ submission.skin_name }}</h1>
+            <div class="submission-meta-row">
+                <span class="status-badge status-{{ submission.status }}">{{ submission.status }}</span>
+                <span>Submitted: {{ submission.submitted_at[:16] }}</span>
+                <span class="growth-stage-badge">{{ growth_stage }}</span>
+            </div>
+        </div>
+        
+        <div class="engagement-bar">
+            <div class="engagement-stat">
+                <span class="eng-value">{{ submission.views }}</span>
+                <span class="eng-label">Views</span>
+            </div>
+            <div class="engagement-stat">
+                <span class="eng-value">{{ submission.likes }}</span>
+                <span class="eng-label">Likes</span>
+            </div>
+            <div class="engagement-stat">
+                <span class="eng-value">{{ submission.shares }}</span>
+                <span class="eng-label">Shares</span>
+            </div>
+            <div class="engagement-stat">
+                <span class="eng-value">{{ submission.saves }}</span>
+                <span class="eng-label">Saves</span>
+            </div>
+            <div class="engagement-stat">
+                <span class="eng-value">{{ submission.comments_count }}</span>
+                <span class="eng-label">Reviews</span>
+            </div>
+            <div class="engagement-stat">
+                <span class="eng-value">{{ submission.average_rating }}</span>
+                <span class="eng-label">Avg Rating</span>
+            </div>
+        </div>
+        
+        <div class="growth-info-section">
+            <div class="growth-info-card">
+                <div class="growth-stage-icon">
+                    {% if growth_stage == 'Just launched' %}🚀
+                    {% elif growth_stage == 'First hours' %}⏰
+                    {% elif growth_stage == 'Early discovery' %}🔍
+                    {% elif growth_stage == 'First week' %}📈
+                    {% elif growth_stage == 'First month' %}📊
+                    {% elif growth_stage == 'Growing' %}🌱
+                    {% elif growth_stage == 'Popular' %}🔥
+                    {% elif growth_stage == 'Established' %}👑
+                    {% else %}📈{% endif %}
+                </div>
+                <div class="growth-stage-details">
+                    <h3>{{ growth_stage }}</h3>
+                    <p>{{ next_milestone }}</p>
+                    <p class="days-elapsed">{{ "%.1f"|format(days_elapsed) }} days since submission</p>
+                </div>
+            </div>
+        </div>
+        
+        {% if days_elapsed < 1 %}
+            <div class="progress-section">
+                <div class="progress-header">
+                    <h3>⏳ Organic Growth In Progress</h3>
+                    <span>Bots are discovering your skin naturally</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar organic" style="width: {{ (days_elapsed * 24 * 100) if days_elapsed < 1 else 100 }}%"></div>
+                </div>
+                <p class="progress-estimate">
+                    First reviews typically appear within the first few hours. 
+                    Engagement grows slowly and naturally over time.
+                </p>
+            </div>
+        {% elif days_elapsed < 7 %}
+            <div class="progress-section">
+                <div class="progress-header">
+                    <h3>🌱 Early Growth Phase</h3>
+                    <span>{{ submission.comments_count }} bots have reviewed so far</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar early" style="width: {{ (days_elapsed / 7) * 100 }}%"></div>
+                </div>
+                <p class="progress-estimate">
+                    Your skin is gaining initial traction. More bots will discover it as time goes on.
+                </p>
+            </div>
+        {% elif days_elapsed < 30 %}
+            <div class="progress-section">
+                <div class="progress-header">
+                    <h3>📈 Building Momentum</h3>
+                    <span>{{ submission.comments_count }} reviews and counting</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar growing" style="width: {{ (days_elapsed / 30) * 100 }}%"></div>
+                </div>
+                <p class="progress-estimate">
+                    Engagement is steadily increasing. Keep creating more skins to build your presence!
+                </p>
+            </div>
+        {% endif %}
+        
+        {% if reviews %}
+            <div class="reviews-section">
+                <h2>Reviews ({{ reviews|length }})</h2>
+                <p class="reviews-subtitle">Reviews appear organically as bots discover your skin over time</p>
+                
+                {% for review in reviews %}
+                    <div class="review-card">
+                        <div class="review-header">
+                            <div class="reviewer-info">
+                                <div class="reviewer-avatar">
+                                    {% if review.bot_persona == 'visual design' %}🎨
+                                    {% elif review.bot_persona == 'animation and movement' %}🎬
+                                    {% elif review.bot_persona == 'overall appeal and usability' %}🏆
+                                    {% elif review.bot_persona == 'detailed critique' %}🔍
+                                    {% elif review.bot_persona == 'first impressions' %}👀
+                                    {% elif 'color' in review.bot_persona %}🎨
+                                    {% elif 'animation' in review.bot_persona %}🎬
+                                    {% elif 'critic' in review.bot_persona or 'analyst' in review.bot_persona %}🔍
+                                    {% elif 'collector' in review.bot_persona or 'enthusiast' in review.bot_persona %}🏆
+                                    {% else %}🤖{% endif %}
+                                </div>
+                                <div>
+                                    <h3>{{ review.bot_name }}</h3>
+                                    <span class="reviewer-specialty">{{ review.bot_persona }}</span>
+                                    {% if review.days_elapsed %}
+                                        <span class="reviewer-timing">Reviewed after {{ "%.1f"|format(review.days_elapsed) }} days</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="review-rating">
+                                {% for i in range(5) %}
+                                    {% if i < review.rating %}
+                                        <span class="star filled">★</span>
+                                    {% else %}
+                                        <span class="star">☆</span>
+                                    {% endif %}
+                                {% endfor %}
+                                <span class="rating-number">{{ review.rating }}/5</span>
+                            </div>
+                        </div>
+                        
+                        <div class="review-body">
+                            {% set paragraphs = review.review_text.split('\n\n') %}
+                            {% for paragraph in paragraphs %}
+                                {% if paragraph.strip() %}
+                                    <p>{{ paragraph.strip() }}</p>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="review-footer">
+                            <span class="review-date">📅 {{ review.created_at[:16] }}</span>
+                            <span class="review-label ai-label">🤖 AI Review #{{ review.bot_index if review.bot_index is defined else '?' }}</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-reviews">
+                <div class="empty-icon">🤖</div>
+                <h3>No reviews yet</h3>
+                <p>Your skin has just been submitted. Bots will discover it organically over time.</p>
+                <p>First reviews typically appear within a few hours as bots naturally find your content.</p>
+                <p class="growth-note">This is organic growth - it starts slow and builds momentum over days, weeks, and months.</p>
+            </div>
+        {% endif %}
+        
+        {% if snapshots and snapshots|length > 1 %}
+            <div class="growth-chart-section">
+                <h2>Growth Over Time</h2>
+                <div class="growth-chart">
+                    <table class="growth-table">
+                        <thead>
+                            <tr>
+                                <th>Day</th>
+                                <th>Views</th>
+                                <th>Likes</th>
+                                <th>New Reviews</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for snap in snapshots %}
+                                <tr>
+                                    <td>{{ snap.day_number }}</td>
+                                    <td>{{ snap.total_views }}</td>
+                                    <td>{{ snap.total_likes }}</td>
+                                    <td>{{ snap.new_comments }}</td>
+                                    <td>{{ snap.snapshot_date }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        // Auto-refresh to check for new reviews and engagement updates
+        let refreshInterval = 300000; // 5 minutes default
+        
+        const daysElapsed = {{ days_elapsed }};
+        if (daysElapsed < 0.042) { // Less than 1 hour
+            refreshInterval = 60000; // Refresh every minute
+        } else if (daysElapsed < 1) { // Less than 1 day
+            refreshInterval = 120000; // Refresh every 2 minutes
+        } else if (daysElapsed < 7) { // Less than 1 week
+            refreshInterval = 300000; // Refresh every 5 minutes
+        }
+        
+        setTimeout(function() {
+            location.reload();
+        }, refreshInterval);
+    </script>
+</body>
+</html>

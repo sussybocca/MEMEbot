@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEMEBOT Engagement - Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dashboard-page">
+    <nav class="top-nav">
+        <div class="nav-brand">
+            <span class="nav-logo">🎭</span>
+            <span class="nav-title">MEMEBOT Engagement</span>
+        </div>
+        <div class="nav-links">
+            <a href="/dashboard" class="nav-link active">Dashboard</a>
+            <a href="/upload" class="nav-link">Upload Skin</a>
+            <span class="nav-user">👤 {{ username }}</span>
+            <a href="/logout" class="nav-link logout">Sign Out</a>
+        </div>
+    </nav>
+    
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h1>Welcome back, {{ username }}!</h1>
+            <p class="subtitle">Your skin submission dashboard</p>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📤</div>
+                <div class="stat-value">{{ stats.total_submissions }}</div>
+                <div class="stat-label">Skins Submitted</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👁️</div>
+                <div class="stat-value">{{ stats.total_views }}</div>
+                <div class="stat-label">Total Views</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">❤️</div>
+                <div class="stat-value">{{ stats.total_likes }}</div>
+                <div class="stat-label">Total Likes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💬</div>
+                <div class="stat-value">{{ stats.total_reviews }}</div>
+                <div class="stat-label">Total Reviews</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⭐</div>
+                <div class="stat-value">{{ stats.average_rating }}</div>
+                <div class="stat-label">Avg Rating</div>
+            </div>
+        </div>
+        
+        <div class="submissions-section">
+            <div class="section-header">
+                <h2>Your Submissions</h2>
+                <a href="/upload" class="btn btn-primary">+ Submit New Skin</a>
+            </div>
+            
+            {% if submissions %}
+                <div class="submissions-grid">
+                    {% for submission in submissions %}
+                        <div class="submission-card" onclick="window.location.href='/submission/{{ submission.id }}'">
+                            <div class="submission-header">
+                                <h3>{{ submission.skin_name }}</h3>
+                                <span class="status-badge status-{{ submission.status }}">
+                                    {{ submission.status }}
+                                </span>
+                            </div>
+                            <div class="submission-meta">
+                                <span class="meta-item">📅 {{ submission.submitted_at[:10] }}</span>
+                            </div>
+                            <div class="submission-stats">
+                                <div class="mini-stat">
+                                    <span class="mini-icon">👁️</span>
+                                    <span>{{ submission.views }}</span>
+                                </div>
+                                <div class="mini-stat">
+                                    <span class="mini-icon">❤️</span>
+                                    <span>{{ submission.likes }}</span>
+                                </div>
+                                <div class="mini-stat">
+                                    <span class="mini-icon">💬</span>
+                                    <span>{{ submission.comments_count }}</span>
+                                </div>
+                                <div class="mini-stat">
+                                    <span class="mini-icon">⭐</span>
+                                    <span>{{ submission.average_rating }}</span>
+                                </div>
+                            </div>
+                            <div class="submission-footer">
+                                <span class="view-details">View Details →</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">🎨</div>
+                    <h3>No submissions yet</h3>
+                    <p>Upload your first MSK skin to get AI-powered reviews and feedback!</p>
+                    <a href="/upload" class="btn btn-primary">Upload Your First Skin</a>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="info-section">
+            <h2>How It Works</h2>
+            <div class="info-cards">
+                <div class="info-card">
+                    <div class="info-card-icon">1️⃣</div>
+                    <h3>Upload MSK Skin</h3>
+                    <p>Submit your MEMEBOT skin file for analysis</p>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-icon">2️⃣</div>
+                    <h3>AI Analysis</h3>
+                    <p>Our system analyzes colors, design, animations, and more</p>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-icon">3️⃣</div>
+                    <h3>Bot Reviews</h3>
+                    <p>5 AI bots with different specialties review your skin over 24 hours</p>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-icon">4️⃣</div>
+                    <h3>Get Feedback</h3>
+                    <p>Receive detailed, honest feedback to improve your creations</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

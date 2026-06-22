@@ -103,6 +103,24 @@ class CharacterRenderer:
     IDLE_RAVE = "rave"
     IDLE_STROBE_DANCE = "strobe_dance"
     
+    # Mapping of dance states to animation frame keys
+    STATE_TO_ANIM_KEY = {
+        "idle": "idle",
+        "walking": "walking",
+        "running": "running",
+        "waving": "waving",
+        "bouncing": "bouncing",
+        "dancing": "dancing",
+        "meme": "dancing",
+        "video_dancing": "dancing",
+        "worm": "dancing",
+        "moonwalk": "dancing",
+        "thriller": "dancing",
+        "robot": "dancing",
+        "disco": "dancing",
+        "disco_party": "dancing",
+    }
+    
     def __init__(self, canvas, config, skin_loader):
         self.canvas = canvas
         self.config = config
@@ -215,6 +233,11 @@ class CharacterRenderer:
         # Music path
         self.disco_music_path = r"D:\MODZ4\music\[FREE] Trap Type Beat - _HUSH_ _ Freestyle Beat 2026 _ Melodic Type Beat _ Rap Type Dark [jWhSBxHxjgs].mp4"
         
+        # Custom animation frame state
+        self.custom_anim_frame = 0
+        self.custom_anim_timer = 0
+        self.custom_anim_speed = 8  # Frames between animation frame changes
+        
         self.update_drawing()
     
     # ============================================
@@ -265,6 +288,8 @@ class CharacterRenderer:
         self.dance_override = True
         self.dance_start_x = self.x
         self.dance_start_y = self.y
+        self.custom_anim_frame = 0
+        self.custom_anim_timer = 0
         
         if dance_state == self.DANCE_WATER_SURVIVAL:
             self._init_water_survival()
@@ -312,6 +337,8 @@ class CharacterRenderer:
         self.idle_type = self.IDLE_DISCO_FEVER
         self.dance_timer = 0
         self.dance_override = True
+        self.custom_anim_frame = 0
+        self.custom_anim_timer = 0
         
         # Spawn particles
         self.add_particle(self.x, self.y, "sparkle", 50)
@@ -377,6 +404,8 @@ class CharacterRenderer:
         self.dance_timer = 0
         self.dance_override = False
         self.disco_party_available = True
+        self.custom_anim_frame = 0
+        self.custom_anim_timer = 0
         
         # Final burst of particles
         self.add_particle(self.x, self.y, "sparkle", 30)
@@ -465,6 +494,8 @@ class CharacterRenderer:
         self.state = self.DANCE_BOUNCING
         self.dance_timer = 0
         self.dance_override = False
+        self.custom_anim_frame = 0
+        self.custom_anim_timer = 0
         
         # Move to safe position
         self.x = self.screen_width // 2
@@ -766,6 +797,11 @@ class CharacterRenderer:
             "clothing": skin.get("clothing", {}),
             "accessories": skin.get("accessories", {}),
             "sprite_data": skin.get("sprite_data", {}),
+            "animation_frames": skin.get("animation_frames", {}),
+            "name": skin.get("name", "Default"),
+            "version": skin.get("version", "4.0"),
+            "author": skin.get("author", "MEMEBOT User"),
+            "description": skin.get("description", ""),
         }
     
     def _get_skin_colors(self):
@@ -823,6 +859,63 @@ class CharacterRenderer:
                 try:
                     layer_data = base64.b64decode(layers[layer_name])
                     layer_img = Image.open(BytesIO(layer_data)).convert('RGBA')
+                    composite = Image.alpha_composite(composite, layer_img)
+                except Exception:
+                    pass
+        
+        return composite
+    
+    def _get_custom_animation_frame(self, cfg):
+        """Get the current custom animation frame based on character state"""
+        animation_frames = cfg.get("animation_frames", {})
+        if not animation_frames:
+            return None
+        
+        # Map current state to animation key
+        anim_key = self.STATE_TO_ANIM_KEY.get(self.state, self.state)
+        
+        # If the exact state doesn't have frames, try "idle" as fallback
+        if anim_key not in animation_frames or not animation_frames[anim_key]:
+            if self.state in [self.DANCE_WALKING, self.DANCE_RUNNING]:
+                anim_key = "walking" if "walking" in animation_frames else "running"
+            if anim_key not in animation_frames or not animation_frames[anim_key]:
+                anim_key = "idle"
+        
+        if anim_key not in animation_frames:
+            return None
+        
+        frames = animation_frames[anim_key]
+        if not frames or len(frames) < 1:
+            return None
+        
+        # Advance frame timer
+        self.custom_anim_timer += 1
+        if self.custom_anim_timer >= self.custom_anim_speed:
+            self.custom_anim_timer = 0
+            self.custom_anim_frame = (self.custom_anim_frame + 1) % len(frames)
+        
+        # Clamp frame index
+        frame_idx = min(self.custom_anim_frame, len(frames) - 1)
+        frame_data = frames[frame_idx]
+        
+        if not frame_data:
+            return None
+        
+        # Build composite from frame layers
+        layer_order = [
+            "tail", "wings", "legs", "body", "arms", "outfit",
+            "accessories", "head", "hair", "eyes", "mouth",
+            "hat", "glasses",
+        ]
+        
+        composite = Image.new('RGBA', (480, 620), (0, 0, 0, 0))
+        
+        for layer_name in layer_order:
+            if layer_name in frame_data:
+                try:
+                    layer_b64 = frame_data[layer_name]
+                    layer_bytes = base64.b64decode(layer_b64)
+                    layer_img = Image.open(BytesIO(layer_bytes)).convert('RGBA')
                     composite = Image.alpha_composite(composite, layer_img)
                 except Exception:
                     pass
@@ -904,19 +997,26 @@ class CharacterRenderer:
         if self.state == self.DANCE_WATER_SURVIVAL:
             self._draw_water_level(draw, c)
         
-        # Try MSK sprite-based rendering first
-        sprite_composite = self._draw_msk_sprites(draw, cfg)
+        # Try custom animation frames first (highest priority)
+        custom_frame = self._get_custom_animation_frame(cfg)
         
-        if sprite_composite is not None and not self.state == self.DANCE_WATER_SURVIVAL:
-            # Use sprite-based rendering (from Drawer-created skins)
-            img.paste(sprite_composite, (0, 0), sprite_composite)
+        if custom_frame is not None and not self.state == self.DANCE_WATER_SURVIVAL:
+            # Use custom animation frame from MSK
+            img.paste(custom_frame, (0, 0), custom_frame)
         else:
-            # Fall back to procedural drawing
-            if laying_down:
-                draw_laying_character(self, draw, c, cfg, cx, ground_y, body_bob)
+            # Try static sprite-based rendering
+            sprite_composite = self._draw_msk_sprites(draw, cfg)
+            
+            if sprite_composite is not None and not self.state == self.DANCE_WATER_SURVIVAL:
+                # Use sprite-based rendering (from Drawer-created skins)
+                img.paste(sprite_composite, (0, 0), sprite_composite)
             else:
-                draw_standing_character(self, draw, c, cfg, cx, ground_y, leg_swing, arm_swing, 
-                                       body_bob, extra_spin, arm_raise, head_bob, idle_bonus)
+                # Fall back to procedural drawing
+                if laying_down:
+                    draw_laying_character(self, draw, c, cfg, cx, ground_y, body_bob)
+                else:
+                    draw_standing_character(self, draw, c, cfg, cx, ground_y, leg_swing, arm_swing, 
+                                           body_bob, extra_spin, arm_raise, head_bob, idle_bonus)
         
         # Draw death effects
         if self.is_dead:

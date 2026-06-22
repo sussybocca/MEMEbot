@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEMEBOT Engagement - Upload Skin</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dashboard-page">
+    <nav class="top-nav">
+        <div class="nav-brand">
+            <span class="nav-logo">🎭</span>
+            <span class="nav-title">MEMEBOT Engagement</span>
+        </div>
+        <div class="nav-links">
+            <a href="/dashboard" class="nav-link">Dashboard</a>
+            <a href="/upload" class="nav-link active">Upload Skin</a>
+            <span class="nav-user">👤 {{ username }}</span>
+            <a href="/logout" class="nav-link logout">Sign Out</a>
+        </div>
+    </nav>
+    
+    <div class="dashboard-container">
+        <div class="upload-section">
+            <h1>Upload Your MSK Skin</h1>
+            <p class="subtitle">Submit your skin for AI-powered analysis and reviews</p>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <div class="upload-area" id="upload-area">
+                <form method="POST" enctype="multipart/form-data" id="upload-form">
+                    <input type="file" id="skin_file" name="skin_file" accept=".msk" hidden>
+                    
+                    <div class="upload-dropzone" id="dropzone">
+                        <div class="upload-icon">📁</div>
+                        <h3>Drag & Drop your .MSK file here</h3>
+                        <p>or click to browse</p>
+                        <span class="file-types">Supported: .MSK files only</span>
+                        
+                        <div class="selected-file" id="selected-file" style="display: none;">
+                            <span class="file-icon">📄</span>
+                            <span class="file-name" id="file-name"></span>
+                            <span class="file-size" id="file-size"></span>
+                            <button type="button" class="btn-remove" onclick="removeFile()">✕</button>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-full" id="submit-btn" disabled>
+                        Submit for Review
+                    </button>
+                </form>
+            </div>
+            
+            <div class="upload-info">
+                <h2>What happens next?</h2>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker">1</div>
+                        <div class="timeline-content">
+                            <h3>Immediate Analysis</h3>
+                            <p>Your skin is instantly analyzed for colors, design completeness, animation readiness, and more</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker">2</div>
+                        <div class="timeline-content">
+                            <h3>Review Generation Begins</h3>
+                            <p>5 AI bots with different specialties start reviewing your skin</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker">3</div>
+                        <div class="timeline-content">
+                            <h3>24-Hour Review Period</h3>
+                            <p>Reviews appear gradually over 24 hours, simulating organic engagement</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker">4</div>
+                        <div class="timeline-content">
+                            <h3>Complete Feedback</h3>
+                            <p>Get detailed, honest feedback from all 5 bot personas with ratings and suggestions</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bot-preview">
+                <h2>Your Review Team</h2>
+                <p>These AI bots will review your skin:</p>
+                <div class="bot-cards">
+                    <div class="bot-card">
+                        <div class="bot-avatar">🎨</div>
+                        <h4>PixelPerfect_Art</h4>
+                        <p class="bot-specialty">Visual Design Specialist</p>
+                        <p class="bot-tone">Passionate about aesthetics</p>
+                    </div>
+                    <div class="bot-card">
+                        <div class="bot-avatar">🎬</div>
+                        <h4>MotionMaster_FX</h4>
+                        <p class="bot-specialty">Animation Expert</p>
+                        <p class="bot-tone">Technical but enthusiastic</p>
+                    </div>
+                    <div class="bot-card">
+                        <div class="bot-avatar">🏆</div>
+                        <h4>SkinCollector_Pro</h4>
+                        <p class="bot-specialty">Overall Appeal Judge</p>
+                        <p class="bot-tone">Practical and experienced</p>
+                    </div>
+                    <div class="bot-card">
+                        <div class="bot-avatar">🔍</div>
+                        <h4>HonestReview_Daily</h4>
+                        <p class="bot-specialty">Detailed Critic</p>
+                        <p class="bot-tone">Blunt but fair</p>
+                    </div>
+                    <div class="bot-card">
+                        <div class="bot-avatar">👀</div>
+                        <h4>Fresh_Eyes_Here</h4>
+                        <p class="bot-specialty">First Impressions</p>
+                        <p class="bot-tone">Curious and open-minded</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('skin_file');
+        const submitBtn = document.getElementById('submit-btn');
+        const selectedFile = document.getElementById('selected-file');
+        const fileName = document.getElementById('file-name');
+        const fileSize = document.getElementById('file-size');
+        
+        dropzone.addEventListener('click', () => fileInput.click());
+        
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+        
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+        
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+        
+        function handleFileSelect(file) {
+            if (!file.name.toLowerCase().endsWith('.msk')) {
+                alert('Only .MSK files are accepted!');
+                return;
+            }
+            
+            fileName.textContent = file.name;
+            
+            const sizeKB = file.size / 1024;
+            if (sizeKB > 1024) {
+                fileSize.textContent = (sizeKB / 1024).toFixed(2) + ' MB';
+            } else {
+                fileSize.textContent = sizeKB.toFixed(1) + ' KB';
+            }
+            
+            selectedFile.style.display = 'flex';
+            submitBtn.disabled = false;
+        }
+        
+        function removeFile() {
+            fileInput.value = '';
+            selectedFile.style.display = 'none';
+            submitBtn.disabled = true;
+        }
+    </script>
+</body>
+</html>
