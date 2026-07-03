@@ -135,24 +135,38 @@ class MemeBotApp:
         
         print(f"[VOCAB] Loaded {len(self.available_words)} words: {', '.join(sorted(self.available_words))}")
         
+        # Greeting templates – using new words naturally
         self.greetings = [
             "hello welcome to memebot",
-            "hey whats crackin",
+            "hey whats crackin bro",
             "heya friend",
             "bonjour",
             "greetings human",
-            "well hello there",
+            "well hello there dude",
             "hi hows it going",
             "hello im back",
             "hey youre back",
-            "heya whats up",
+            "heya whats up bro",
             "well hello",
             "greetings friend",
             "hi there",
             "hello human",
             "hey friend",
+            "yo whats good",
+            "heya whatsup",
+            "yo hello memebot here",
+            "hey dude welcome",
+            "hello and welcome",
+            "whats up my friend",
+            "good to see you",
+            "yo greetings",
+            "hello fire friend",
+            "good day human",
+            "well hello space traveler",
+            "greetings from memebot",
         ]
         
+        # Random sentences – lots of variety with new words
         self.sentences = [
             "im so happy today",
             "what a beautiful day",
@@ -174,8 +188,45 @@ class MemeBotApp:
             "watch this",
             "you see me",
             "what a day",
+            # new with added words
+            "yo thats fire bro",
+            "dude thats so fire",
+            "what a good day",
+            "looking good my friend",
+            "im ready for space",
+            "watch the space",
+            "whats up dude",
+            "thats a good meme",
+            "fire in the sky",
+            "space is so beautiful",
+            "bro you see that",
+            "im so ready bro",
+            "good to be back",
+            "whats good today",
+            "dude im back",
+            "yo welcome back",
+            "im going to space",
+            "the space is calling",
+            "fire alert fire",
+            "bro thats awesome",
+            "what a beautiful space",
+            "looking fire today",
+            "some fun in space",
+            "yeah im ready",
+            "yeah thats right",
+            "yo check this out",
+            "good vibrations",
+            "dude what a day",
+            "bro whats good",
+            "space the final frontier",
+            "fire in the hole",
+            "what a fire show",
+            "im so ready for space",
+            "yeah looking good",
+            "good to see you friend",
         ]
         
+        # Meme reactions – some with DF/DFL gibberish
         self.meme_reactions = [
             "watch this",
             "thats so funny",
@@ -187,8 +238,22 @@ class MemeBotApp:
             "some fun",
             "whats this",
             "watch me",
+            "bro thats fire",
+            "dude this meme is fire",
+            "yo thats hilarious",
+            "DF DFL what a meme",
+            "DFL DF so funny",
+            "space meme activate",
+            "fire meme incoming",
+            "watch this bro",
+            "yeah thats the meme",
+            "good meme right there",
+            "what a fire meme",
+            "this is DF level meme",
+            "DFL DFL meme alert",
         ]
         
+        # Video reactions
         self.video_reactions = [
             "watch this",
             "im ready for video",
@@ -198,8 +263,19 @@ class MemeBotApp:
             "ive been waiting",
             "some fun",
             "watch me",
+            "bro check this video",
+            "yo this video is fire",
+            "space video time",
+            "good video coming up",
+            "dude watch this",
+            "yeah lets go",
+            "fire video alert",
+            "DF video mode",
+            "DFL what a video",
+            "what a good video",
         ]
         
+        # GIF reactions
         self.gif_reactions = [
             "watch this",
             "thats so funny",
@@ -208,8 +284,18 @@ class MemeBotApp:
             "what a gif",
             "some fun",
             "watch me",
+            "bro this gif is fire",
+            "yo gif time",
+            "space gif incoming",
+            "good gif bro",
+            "dude check the gif",
+            "yeah gif",
+            "DF gif moment",
+            "DFL DFL gif",
+            "fire gif alert",
         ]
         
+        # Idle chatter – casual and varied
         self.idle_chatter = [
             "im so happy",
             "what a beautiful day",
@@ -221,6 +307,26 @@ class MemeBotApp:
             "so happy",
             "whats going on",
             "thats beautiful",
+            "yo whats good",
+            "dude im chilling",
+            "bro this is nice",
+            "feeling good today",
+            "space is cool",
+            "fire vibes only",
+            "yeah man",
+            "good day huh",
+            "what a fire day",
+            "DF DFL random",
+            "DFL space thoughts",
+            "just floating in space",
+            "bro you know",
+            "dude its a good day",
+            "yeah im here",
+            "hello space",
+            "whatsup world",
+            "good to be alive",
+            "fire thoughts",
+            "DFL DF chatter",
         ]
     
     def _get_wav_duration(self, filepath):
