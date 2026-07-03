@@ -1,0 +1,108 @@
+{
+  "id": "game_1782487607",
+  "name": "My Platformer",
+  "description": "Jump and run through levels collecting items",
+  "template": "platformer",
+  "version": "1.0",
+  "author": "MEMEBOT User",
+  "controls": {
+    "Left": "move_left",
+    "Right": "move_right",
+    "Up": "jump",
+    "Space": "action"
+  },
+  "mechanics": [
+    "gravity",
+    "jumping",
+    "collecting",
+    "enemies",
+    "platforms"
+  ],
+  "win_condition": "reach_end",
+  "target_score": 0,
+  "time_limit": 0,
+  "lives": 3,
+  "difficulty": "normal",
+  "map": "spooky_cave",
+  "player_character": "memebot",
+  "characters": [
+    {
+      "id": "space_blob",
+      "x": 100,
+      "y": 450,
+      "type": "space_blob"
+    },
+    {
+      "id": "space_blob",
+      "x": 500,
+      "y": 450,
+      "type": "space_blob"
+    }
+  ],
+  "collectibles": [],
+  "enemies": [],
+  "platforms": [],
+  "hazards": [
+    {
+      "x": 700,
+      "y": 450,
+      "width": 40,
+      "height": 40,
+      "type": "meteor",
+      "fall_speed": 5
+    }
+  ],
+  "sounds": [],
+  "memes": [],
+  "events": [],
+  "ui_elements": [
+    {
+      "type": "text",
+      "text": "Score: {score}",
+      "x": 10,
+      "y": 10,
+      "binding": "score"
+    },
+    {
+      "type": "text",
+      "text": "Health: {health}",
+      "x": 10,
+      "y": 40,
+      "binding": "health"
+    },
+    {
+      "type": "text",
+      "text": "Lives: {lives}",
+      "x": 10,
+      "y": 70,
+      "binding": "lives"
+    }
+  ],
+  "enemys": [
+    {
+      "x": 300,
+      "y": 450,
+      "type": "ghost",
+      "patrol": 100,
+      "speed": 2,
+      "damage": 10
+    },
+    {
+      "x": 150,
+      "y": 450,
+      "type": "meme_troll",
+      "patrol": 100,
+      "speed": 2,
+      "damage": 10
+    },
+    {
+      "x": 550,
+      "y": 450,
+      "type": "ghost",
+      "patrol": 100,
+      "speed": 2,
+      "damage": 10
+    }
+  ],
+  "maps": []
+}

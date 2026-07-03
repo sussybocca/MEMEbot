@@ -1,0 +1,186 @@
+"""
+MEMEEngine Map Presets
+Pre-built level maps with platforms, collectibles, enemies, and hazards
+"""
+
+PRESET_MAPS = {
+    "grassy_hills": {
+        "name": "Grassy Hills",
+        "description": "Green hills with blue skies and floating platforms",
+        "theme": "nature",
+        "background_color": "#87CEEB",
+        "ground_y": 500,
+        "default_size": (2400, 600),
+        "spawn_point": (100, 420),
+        "end_point": (2200, 420),
+        "platforms": [
+            {"x": 300, "y": 400, "width": 200, "height": 20, "type": "static"},
+            {"x": 600, "y": 350, "width": 150, "height": 20, "type": "static"},
+            {"x": 900, "y": 380, "width": 180, "height": 20, "type": "static"},
+            {"x": 1200, "y": 320, "width": 200, "height": 20, "type": "moving", "move_x": 100, "speed": 2},
+            {"x": 1500, "y": 400, "width": 160, "height": 20, "type": "static"},
+            {"x": 1800, "y": 350, "width": 200, "height": 20, "type": "static"},
+            {"x": 2000, "y": 300, "width": 150, "height": 20, "type": "static"},
+        ],
+        "collectibles": [
+            {"x": 350, "y": 360, "type": "coin"},
+            {"x": 380, "y": 360, "type": "coin"},
+            {"x": 650, "y": 310, "type": "gem"},
+            {"x": 950, "y": 340, "type": "coin"},
+            {"x": 1250, "y": 280, "type": "star"},
+            {"x": 1550, "y": 360, "type": "coin"},
+            {"x": 1580, "y": 360, "type": "coin"},
+            {"x": 1610, "y": 360, "type": "coin"},
+            {"x": 1850, "y": 310, "type": "gem"},
+        ],
+        "enemies": [
+            {"x": 500, "y": 460, "type": "slime", "patrol": 100},
+            {"x": 800, "y": 460, "type": "slime", "patrol": 80},
+            {"x": 1100, "y": 460, "type": "skeleton", "patrol": 120},
+            {"x": 1700, "y": 460, "type": "slime", "patrol": 100},
+        ]
+    },
+    "spooky_cave": {
+        "name": "Spooky Cave",
+        "description": "Dark cave with glow mushrooms and lava pits",
+        "theme": "underground",
+        "background_color": "#1a1a2e",
+        "ground_y": 520,
+        "default_size": (2000, 600),
+        "spawn_point": (100, 440),
+        "end_point": (1800, 440),
+        "platforms": [
+            {"x": 250, "y": 420, "width": 150, "height": 20, "type": "crumbling"},
+            {"x": 550, "y": 380, "width": 180, "height": 20, "type": "static"},
+            {"x": 800, "y": 340, "width": 160, "height": 20, "type": "static"},
+            {"x": 1100, "y": 400, "width": 200, "height": 20, "type": "moving", "move_y": 60, "speed": 1.5},
+            {"x": 1400, "y": 360, "width": 180, "height": 20, "type": "static"},
+        ],
+        "collectibles": [
+            {"x": 300, "y": 380, "type": "gem"},
+            {"x": 600, "y": 340, "type": "coin"},
+            {"x": 850, "y": 300, "type": "star"},
+            {"x": 1150, "y": 360, "type": "coin"},
+            {"x": 1450, "y": 320, "type": "gem"},
+        ],
+        "enemies": [
+            {"x": 400, "y": 480, "type": "ghost", "patrol": 150},
+            {"x": 700, "y": 480, "type": "skeleton", "patrol": 100},
+            {"x": 1000, "y": 480, "type": "ghost", "patrol": 120},
+            {"x": 1500, "y": 480, "type": "boss_slime", "patrol": 0, "is_boss": True},
+        ],
+        "hazards": [
+            {"x": 0, "y": 540, "width": 2000, "height": 60, "type": "lava"}
+        ]
+    },
+    "meme_city": {
+        "name": "Meme City",
+        "description": "A vibrant city made of memes with neon lights",
+        "theme": "urban",
+        "background_color": "#1a0033",
+        "ground_y": 480,
+        "default_size": (3200, 600),
+        "spawn_point": (100, 400),
+        "end_point": (3000, 400),
+        "platforms": [
+            {"x": 200, "y": 380, "width": 200, "height": 20, "type": "static"},
+            {"x": 500, "y": 320, "width": 180, "height": 20, "type": "static"},
+            {"x": 800, "y": 360, "width": 200, "height": 20, "type": "bouncy"},
+            {"x": 1100, "y": 300, "width": 160, "height": 20, "type": "moving", "move_x": 150, "speed": 3},
+            {"x": 1400, "y": 350, "width": 200, "height": 20, "type": "static"},
+            {"x": 1700, "y": 280, "width": 180, "height": 20, "type": "static"},
+            {"x": 2000, "y": 340, "width": 200, "height": 20, "type": "moving", "move_y": 50, "speed": 2},
+            {"x": 2300, "y": 300, "width": 160, "height": 20, "type": "static"},
+            {"x": 2600, "y": 350, "width": 200, "height": 20, "type": "bouncy"},
+        ],
+        "collectibles": [
+            {"x": 250, "y": 340, "type": "meme_coin"},
+            {"x": 550, "y": 280, "type": "star"},
+            {"x": 850, "y": 320, "type": "coin"},
+            {"x": 1150, "y": 260, "type": "gem"},
+            {"x": 1450, "y": 310, "type": "meme_coin"},
+            {"x": 1750, "y": 240, "type": "star"},
+            {"x": 2050, "y": 300, "type": "coin"},
+            {"x": 2350, "y": 260, "type": "gem"},
+        ],
+        "enemies": [
+            {"x": 600, "y": 440, "type": "robot_enemy", "patrol": 120},
+            {"x": 900, "y": 440, "type": "meme_troll", "patrol": 100},
+            {"x": 1300, "y": 440, "type": "robot_enemy", "patrol": 150},
+            {"x": 1800, "y": 440, "type": "meme_troll", "patrol": 100},
+            {"x": 2200, "y": 440, "type": "robot_enemy", "patrol": 120},
+        ]
+    },
+    "space_station": {
+        "name": "Space Station",
+        "description": "Zero gravity space station with asteroids",
+        "theme": "space",
+        "background_color": "#000011",
+        "ground_y": 500,
+        "default_size": (2400, 600),
+        "spawn_point": (100, 420),
+        "end_point": (2200, 420),
+        "gravity": 0.3,
+        "platforms": [
+            {"x": 300, "y": 350, "width": 200, "height": 20, "type": "static"},
+            {"x": 600, "y": 280, "width": 150, "height": 20, "type": "moving", "move_x": 100, "move_y": 50, "speed": 1.5},
+            {"x": 900, "y": 350, "width": 180, "height": 20, "type": "static"},
+            {"x": 1200, "y": 250, "width": 200, "height": 20, "type": "static"},
+            {"x": 1500, "y": 320, "width": 160, "height": 20, "type": "moving", "move_y": 80, "speed": 2},
+            {"x": 1800, "y": 280, "width": 200, "height": 20, "type": "static"},
+        ],
+        "collectibles": [
+            {"x": 350, "y": 310, "type": "star"},
+            {"x": 650, "y": 240, "type": "gem"},
+            {"x": 950, "y": 310, "type": "coin"},
+            {"x": 1250, "y": 210, "type": "star"},
+            {"x": 1550, "y": 280, "type": "coin"},
+            {"x": 1850, "y": 240, "type": "gem"},
+        ],
+        "enemies": [
+            {"x": 500, "y": 460, "type": "robot_enemy", "patrol": 100},
+            {"x": 1000, "y": 460, "type": "robot_enemy", "patrol": 120},
+            {"x": 1600, "y": 460, "type": "robot_enemy", "patrol": 100},
+        ],
+        "hazards": [
+            {"x": 400, "y": 500, "width": 40, "height": 40, "type": "meteor", "fall_speed": 5},
+            {"x": 800, "y": -50, "width": 40, "height": 40, "type": "meteor", "fall_speed": 4},
+            {"x": 1400, "y": -100, "width": 40, "height": 40, "type": "meteor", "fall_speed": 6},
+        ]
+    },
+    "beach_party": {
+        "name": "Beach Party",
+        "description": "Tropical beach with waves and palm trees",
+        "theme": "tropical",
+        "background_color": "#87CEEB",
+        "ground_y": 480,
+        "default_size": (2800, 600),
+        "spawn_point": (100, 400),
+        "end_point": (2600, 400),
+        "platforms": [
+            {"x": 250, "y": 380, "width": 200, "height": 20, "type": "static"},
+            {"x": 550, "y": 340, "width": 160, "height": 20, "type": "sinking"},
+            {"x": 800, "y": 370, "width": 200, "height": 20, "type": "static"},
+            {"x": 1100, "y": 310, "width": 180, "height": 20, "type": "moving", "move_x": 120, "speed": 2},
+            {"x": 1400, "y": 360, "width": 200, "height": 20, "type": "static"},
+            {"x": 1700, "y": 320, "width": 160, "height": 20, "type": "sinking"},
+            {"x": 2000, "y": 360, "width": 200, "height": 20, "type": "static"},
+            {"x": 2300, "y": 300, "width": 180, "height": 20, "type": "moving", "move_y": 40, "speed": 1.5},
+        ],
+        "collectibles": [
+            {"x": 300, "y": 340, "type": "coin"},
+            {"x": 600, "y": 300, "type": "star"},
+            {"x": 850, "y": 330, "type": "coin"},
+            {"x": 1150, "y": 270, "type": "gem"},
+            {"x": 1450, "y": 320, "type": "coin"},
+            {"x": 1750, "y": 280, "type": "star"},
+            {"x": 2050, "y": 320, "type": "coin"},
+        ],
+        "enemies": [
+            {"x": 400, "y": 440, "type": "slime", "patrol": 100},
+            {"x": 900, "y": 440, "type": "slime", "patrol": 100},
+            {"x": 1500, "y": 440, "type": "slime", "patrol": 100},
+            {"x": 2100, "y": 440, "type": "slime", "patrol": 100},
+        ]
+    }
+}

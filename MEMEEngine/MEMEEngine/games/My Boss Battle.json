@@ -1,0 +1,110 @@
+{
+  "id": "game_1782417456",
+  "name": "My Boss Battle",
+  "description": "Defeat the boss by dodging attacks and striking back",
+  "template": "boss_battle",
+  "version": "1.0",
+  "author": "MEMEBOT User",
+  "controls": {
+    "Left": "move_left",
+    "Right": "move_right",
+    "Up": "jump",
+    "Space": "attack"
+  },
+  "mechanics": [
+    "boss_ai",
+    "health_bars",
+    "phase_changes",
+    "gravity"
+  ],
+  "win_condition": "defeat_boss",
+  "target_score": 0,
+  "time_limit": 0,
+  "lives": 3,
+  "difficulty": "normal",
+  "map": "spooky_cave",
+  "player_character": "memebot",
+  "characters": [],
+  "collectibles": [
+    {
+      "x": 300,
+      "y": 380,
+      "type": "gem"
+    },
+    {
+      "x": 600,
+      "y": 340,
+      "type": "coin"
+    },
+    {
+      "x": 850,
+      "y": 300,
+      "type": "star"
+    },
+    {
+      "x": 1150,
+      "y": 360,
+      "type": "coin"
+    },
+    {
+      "x": 1450,
+      "y": 320,
+      "type": "gem"
+    }
+  ],
+  "enemies": [],
+  "platforms": [],
+  "hazards": [],
+  "sounds": [],
+  "memes": [],
+  "events": [],
+  "ui_elements": [
+    {
+      "type": "text",
+      "text": "Score: {score}",
+      "x": 10,
+      "y": 10,
+      "binding": "score"
+    },
+    {
+      "type": "text",
+      "text": "Health: {health}",
+      "x": 10,
+      "y": 40,
+      "binding": "health"
+    },
+    {
+      "type": "text",
+      "text": "Lives: {lives}",
+      "x": 10,
+      "y": 70,
+      "binding": "lives"
+    }
+  ],
+  "enemys": [
+    {
+      "x": 400,
+      "y": 480,
+      "type": "ghost",
+      "patrol": 100
+    },
+    {
+      "x": 700,
+      "y": 480,
+      "type": "skeleton",
+      "patrol": 100
+    },
+    {
+      "x": 1000,
+      "y": 480,
+      "type": "ghost",
+      "patrol": 100
+    },
+    {
+      "x": 1500,
+      "y": 480,
+      "type": "boss_slime",
+      "patrol": 100
+    }
+  ]
+}
