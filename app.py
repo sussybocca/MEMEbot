@@ -9,11 +9,13 @@ import threading
 import time
 import importlib
 import random
+import wave
 
 # Add Src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'Src'))
 
 import tkinter as tk
+import pygame
 
 # Import all modular components using importlib for hyphenated folder names
 ConfigModule = importlib.import_module('Config.config')
@@ -101,10 +103,18 @@ class MemeBotApp:
         # Addon & Extension Manager (create AFTER mod_menu for Lua access)
         self.addon_manager = AddonManager(self.config, self)
         
+        # Dedicated voice channel for word playback (prevents overriding)
+        self._voice_channel = None
+        
         # State
         self.auto_play_paused = False
         self._auto_counter = 0
-        self.is_running = False  # Set to False until start() is called
+        self._idle_counter = 0
+        self._word_only_counter = 0
+        self.is_running = False
+        self._is_speaking = False
+        self._speech_lock = threading.Lock()
+        self._current_audio_type = None
         
         # Vocabulary / sentence building
         self._build_vocabulary()
@@ -116,7 +126,6 @@ class MemeBotApp:
     
     def _build_vocabulary(self):
         """Build sentence templates from available voice files"""
-        # All available word files (without extension)
         self.available_words = []
         if os.path.exists(self.config.VOICE_PATH):
             for f in os.listdir(self.config.VOICE_PATH):
@@ -124,7 +133,8 @@ class MemeBotApp:
                     word = os.path.splitext(f)[0]
                     self.available_words.append(word)
         
-        # Greeting templates using available words
+        print(f"[VOCAB] Loaded {len(self.available_words)} words: {', '.join(sorted(self.available_words))}")
+        
         self.greetings = [
             "hello welcome to memebot",
             "hey whats crackin",
@@ -143,7 +153,6 @@ class MemeBotApp:
             "hey friend",
         ]
         
-        # Random sentence templates
         self.sentences = [
             "im so happy today",
             "what a beautiful day",
@@ -167,44 +176,40 @@ class MemeBotApp:
             "what a day",
         ]
         
-        # Reaction sentences for memes
         self.meme_reactions = [
-            "watch this meme",
+            "watch this",
             "thats so funny",
             "im ready for this",
-            "you see that meme",
+            "you see that",
             "what a meme",
-            "looking good meme",
+            "looking good",
             "ive been waiting for this",
-            "some fun meme",
-            "whats this meme",
-            "watch me meme",
+            "some fun",
+            "whats this",
+            "watch me",
         ]
         
-        # Reaction sentences for videos
         self.video_reactions = [
-            "watch this video",
+            "watch this",
             "im ready for video",
-            "you see that video",
-            "looking good video",
+            "you see that",
+            "looking good",
             "what a video",
-            "ive been waiting for video",
-            "some fun video",
-            "watch me video",
+            "ive been waiting",
+            "some fun",
+            "watch me",
         ]
         
-        # Reaction sentences for GIFs
         self.gif_reactions = [
-            "watch this gif",
-            "thats so funny gif",
-            "you see that gif",
-            "looking good gif",
+            "watch this",
+            "thats so funny",
+            "you see that",
+            "looking good",
             "what a gif",
-            "some fun gif",
-            "watch me gif",
+            "some fun",
+            "watch me",
         ]
         
-        # Random idle chatter
         self.idle_chatter = [
             "im so happy",
             "what a beautiful day",
@@ -218,31 +223,72 @@ class MemeBotApp:
             "thats beautiful",
         ]
     
-    def _speak_sentence(self, sentence: str):
-        """Speak a sentence word by word using available voice files"""
-        words = sentence.split()
-        spoken_words = []
+    def _get_wav_duration(self, filepath):
+        """Get duration of a WAV file in seconds"""
+        try:
+            with wave.open(filepath, 'rb') as wf:
+                frames = wf.getnframes()
+                rate = wf.getframerate()
+                return frames / float(rate)
+        except:
+            return 0.5
+    
+    def _play_voice_file(self, voice_file):
+        """Play a single voice file using dedicated channel and wait for it to finish"""
+        if not voice_file or not self.is_running:
+            return
         
-        for word in words:
-            if word in self.available_words:
-                spoken_words.append(word)
-                voice_file = self.voice_manager.get_file(word)
-                if voice_file:
-                    self.audio_player.play(voice_file)
-                    time.sleep(0.3)  # Small gap between words
+        self._current_audio_type = 'voice'
         
-        return " ".join(spoken_words)
+        try:
+            # Use pygame.mixer.Sound with dedicated channel to prevent overriding
+            sound = pygame.mixer.Sound(voice_file)
+            
+            # Reserve a dedicated channel for voice (channel 0)
+            if self._voice_channel is None:
+                self._voice_channel = pygame.mixer.Channel(0)
+            
+            # Stop anything currently on the voice channel
+            self._voice_channel.stop()
+            
+            # Play the sound on the dedicated voice channel
+            self._voice_channel.play(sound)
+            
+            # Wait for the sound to actually finish playing on the channel
+            while self._voice_channel.get_busy() and self.is_running:
+                time.sleep(0.02)
+            
+            # Small gap between words
+            time.sleep(0.12)
+            
+        except Exception as e:
+            # Fallback: use audio_player with duration-based waiting
+            print(f"[VOICE] pygame Sound failed, using fallback: {e}")
+            duration = self._get_wav_duration(voice_file)
+            self.audio_player.play(voice_file)
+            time.sleep(max(duration, 0.5) + 0.2)
     
     def _speak_sentence_async(self, sentence: str):
-        """Speak a sentence asynchronously in a thread"""
+        """Speak a sentence word by word asynchronously"""
+        if self._is_speaking:
+            return
+        
         def speak_thread():
-            words = sentence.split()
-            for word in words:
-                if word in self.available_words and self.is_running:
-                    voice_file = self.voice_manager.get_file(word)
-                    if voice_file:
-                        self.audio_player.play(voice_file)
-                        time.sleep(0.35)
+            with self._speech_lock:
+                self._is_speaking = True
+                try:
+                    words = sentence.split()
+                    for word in words:
+                        if not self.is_running:
+                            break
+                        if word in self.available_words:
+                            voice_file = self.voice_manager.get_file(word)
+                            if voice_file:
+                                self._play_voice_file(voice_file)
+                finally:
+                    self._is_speaking = False
+                    self._current_audio_type = None
+        
         threading.Thread(target=speak_thread, daemon=True).start()
     
     def _setup_bindings(self):
@@ -263,11 +309,9 @@ class MemeBotApp:
         self.root.bind('t', lambda e: self.say_random_sentence())
         self.root.bind('y', lambda e: self.say_random_chatter())
         
-        # Addon/Extension keys
         self.root.bind('<Control-a>', lambda e: self._toggle_addons())
         self.root.bind('<Control-e>', lambda e: self._toggle_extensions())
         
-        # Dance keys
         self.root.bind('1', lambda e: self.character.set_dance("worm"))
         self.root.bind('2', lambda e: self.character.set_dance("moonwalk"))
         self.root.bind('3', lambda e: self.character.set_dance("thriller"))
@@ -286,82 +330,86 @@ class MemeBotApp:
             self.root.after(33, self._animate)
     
     def _schedule_auto_play(self, interval):
-        """Schedule automatic meme playback"""
+        """Schedule automatic meme OR word playback depending on auto_play_paused"""
         def loop():
+            meme_counter = 0
+            word_counter = 0
             while self.is_running:
                 time.sleep(1)
-                if self.is_running and not self.auto_play_paused:
-                    self._auto_counter += 1
-                    if self._auto_counter >= interval:
-                        self._auto_counter = 0
+                if not self.is_running:
+                    break
+                
+                if self.auto_play_paused:
+                    if not self._is_speaking:
+                        word_counter += 1
+                        if word_counter >= 8:
+                            word_counter = 0
+                            self.root.after(0, self.say_random_sentence)
+                else:
+                    meme_counter += 1
+                    if meme_counter >= interval and not self._is_speaking:
+                        meme_counter = 0
                         self.root.after(0, self.play_random_meme)
         threading.Thread(target=loop, daemon=True).start()
     
     def _schedule_idle_chatter(self, interval=30):
         """Schedule random idle chatter"""
         def loop():
+            counter = 0
             while self.is_running:
                 time.sleep(1)
-                if self.is_running and self.character.state == "idle":
-                    self._auto_counter += 1
-                    if self._auto_counter >= interval:
-                        self._auto_counter = 0
-                        self.root.after(0, self.say_random_chatter)
+                if self.is_running and not self._is_speaking:
+                    if self.character.state == "idle":
+                        counter += 1
+                        if counter >= interval:
+                            counter = 0
+                            self.root.after(0, self.say_random_chatter)
+                else:
+                    counter = 0
         threading.Thread(target=loop, daemon=True).start()
     
     def _startup_greeting(self):
         """Play startup greeting with random sentence"""
         self.character.state = "waving"
         self.character.add_particle(240, 300, "sparkle", 10)
-        
-        # Pick random greeting
         greeting = random.choice(self.greetings)
         self.character.say(greeting)
         self._speak_sentence_async(greeting)
-        
         self.root.after(2000, lambda: setattr(self.character, 'state', 'idle'))
     
     def _toggle_addons(self):
         """Toggle addons on/off"""
         addons = self.addon_manager.get_addons()
         if not addons:
-            self.say("No addons found! Create in Addons/ folder")
+            self.say("No addons found")
             return
-        
         active = self.addon_manager.active_addons
         if active:
-            # Unload all active addons
             for name in active[:]:
                 self.addon_manager.unload_addon(name)
-            self.say("All addons unloaded")
+            self.say("Addons unloaded")
         else:
-            # Load first available addon
             for addon in addons:
                 if not addon.get("enabled", False):
-                    success = self.addon_manager.load_addon(addon["name"])
-                    if success:
-                        break
+                    self.addon_manager.load_addon(addon["name"])
+                    break
     
     def _toggle_extensions(self):
         """Toggle extensions on/off"""
         extensions = self.addon_manager.get_extensions()
         if not extensions:
-            self.say("No extensions found! Create in Extensions/ folder")
+            self.say("No extensions found")
             return
-        
         active = self.addon_manager.active_extensions
         if active:
-            # Unload all active extensions
             for name in active[:]:
                 self.addon_manager.unload_extension(name)
-            self.say("All extensions unloaded")
+            self.say("Extensions unloaded")
         else:
-            # Load first available extension
             for ext in extensions:
                 if not ext.get("enabled", False):
-                    success = self.addon_manager.load_extension(ext["name"])
-                    if success:
-                        break
+                    self.addon_manager.load_extension(ext["name"])
+                    break
     
     # ============================================
     # Event handlers
@@ -369,16 +417,23 @@ class MemeBotApp:
     
     def on_click(self, event):
         self.character.move_to(event.x, event.y + 80)
-        self.play_random_meme()
+        if self.auto_play_paused:
+            if not self._is_speaking:
+                sentence = random.choice(self.sentences)
+                self.character.say(sentence)
+                self._speak_sentence_async(sentence)
+        else:
+            if not self._is_speaking:
+                self.play_random_meme()
     
     def on_double_click(self, event):
         self.say_hello()
     
     def on_right_click(self, event):
-        self.play_random_sound()
         self.character.state = "bouncing"
         self.character.add_particle(event.x, event.y, "music", 5)
-        # Say random sentence on right click
+        self.audio_player.stop_all()
+        self.play_random_sound()
         sentence = random.choice(self.sentences)
         self.character.say(sentence)
         self._speak_sentence_async(sentence)
@@ -403,74 +458,96 @@ class MemeBotApp:
     
     def say_hello(self):
         """Say a random greeting"""
+        self.audio_player.stop_all()
+        time.sleep(0.15)
         greeting = random.choice(self.greetings)
         self.say_and_speak(greeting)
     
     def say_random_sentence(self):
         """Say a random sentence"""
+        if self._is_speaking:
+            return
         sentence = random.choice(self.sentences)
         self.say_and_speak(sentence)
     
     def say_random_chatter(self):
         """Say random idle chatter"""
-        if self.character.state == "idle" or self.character.state == "walking":
+        if not self._is_speaking:
             chatter = random.choice(self.idle_chatter)
             self.say_and_speak(chatter)
     
     def play_random_meme(self):
-        """Play a random meme with voice reaction"""
+        """Play a random meme - speak reaction first, then meme"""
+        if self._is_speaking:
+            return
+        
         self.character.set_dance("dancing")
         self.character.emotion = "happy"
         self.character.add_particle(self.character.x, self.character.y - 100, "sparkle", 10)
         self.character.add_particle(self.character.x, self.character.y - 100, "music", 5)
         
-        # Random meme reaction
         reaction = random.choice(self.meme_reactions)
         self.character.say(reaction)
-        self._speak_sentence_async(reaction)
         
-        result = self.media_manager.play_random_meme()
-        if not result:
-            self.character.say("No memes found!")
-        self.root.after(4000, lambda: setattr(self.character, 'state', 'idle'))
+        def speak_then_play():
+            with self._speech_lock:
+                self._is_speaking = True
+                try:
+                    words = reaction.split()
+                    for word in words:
+                        if not self.is_running:
+                            return
+                        if word in self.available_words:
+                            voice_file = self.voice_manager.get_file(word)
+                            if voice_file:
+                                self._play_voice_file(voice_file)
+                    
+                    time.sleep(0.2)
+                    self.audio_player.stop_all()
+                    if self.is_running:
+                        result = self.media_manager.play_random_meme()
+                        if not result:
+                            self.root.after(0, lambda: self.character.say("No memes found"))
+                finally:
+                    self._is_speaking = False
+                    self._current_audio_type = None
+        
+        threading.Thread(target=speak_then_play, daemon=True).start()
+        self.root.after(5000, lambda: setattr(self.character, 'state', 'idle'))
     
     def play_random_sound(self):
         """Play a random sound effect"""
         self.media_manager.play_random_sound()
     
     def play_random_video(self):
-        """Play a random video with voice reaction"""
+        """Play a random video"""
+        self.audio_player.stop_all()
         video = self.media_manager.play_random_video(show_window=True)
         if video:
             self.character.state = "video_dancing"
             self.character.video_playing = True
             self.character.add_particle(self.character.x, self.character.y - 100, "sparkle", 12)
-            
-            # Random video reaction
             reaction = random.choice(self.video_reactions)
             self.character.say(reaction)
             self._speak_sentence_async(reaction)
-            
             self.video_player.show(str(video), self.character.x, self.character.y)
         else:
-            self.character.say("No videos found!")
+            self.character.say("No videos found")
         self.root.after(4000, lambda: setattr(self.character, 'state', 'idle'))
     
     def play_random_gif(self):
-        """Play a random GIF with voice reaction"""
+        """Play a random GIF"""
+        self.audio_player.stop_all()
         gif = self.media_manager.play_random_gif()
         if gif:
             self.character.state = "dancing"
             self.character.add_particle(self.character.x, self.character.y - 100, "sparkle", 8)
-            
-            # Random GIF reaction
             reaction = random.choice(self.gif_reactions)
             self.character.say(reaction)
             self._speak_sentence_async(reaction)
-            
             self.gif_player.show(str(gif), self.character.x, self.character.y)
         else:
-            self.character.say("No GIFs found!")
+            self.character.say("No GIFs found")
         self.root.after(4000, lambda: setattr(self.character, 'state', 'idle'))
     
     def play_file(self, file_path: str):
@@ -478,7 +555,7 @@ class MemeBotApp:
         from pathlib import Path
         path = Path(file_path)
         if not path.exists():
-            self.character.say("File not found!")
+            self.character.say("File not found")
             return
         
         is_video = path.suffix.lower() in ['.mp4', '.avi', '.mkv', '.mov', '.webm']
@@ -486,7 +563,7 @@ class MemeBotApp:
         
         self.character.state = "video_dancing" if (is_video or is_gif) else "dancing"
         self.character.is_talking = True
-        self.character.say(f"Playing {path.name[:20]}!")
+        self.character.say(f"Playing {path.name[:20]}")
         self.character.add_particle(self.character.x, self.character.y - 100, "sparkle", 8)
         
         if is_gif:
@@ -503,15 +580,15 @@ class MemeBotApp:
                                        setattr(self.character, 'video_playing', False)])
     
     def toggle_auto_play(self):
-        """Toggle auto-play on/off"""
+        """Toggle auto-play on/off - OFF means words only, ON means memes"""
         self.auto_play_paused = not self.auto_play_paused
-        status = "OFF" if self.auto_play_paused else "ON"
-        self.character.say(f"Auto-play {status}")
-        # Say it with voice too
-        if not self.auto_play_paused:
-            self._speak_sentence_async("im ready for anything")
+        self.audio_player.stop_all()
+        time.sleep(0.15)
+        
+        if self.auto_play_paused:
+            self.character.say("Auto-play OFF - Words mode")
         else:
-            self._speak_sentence_async("well see you later")
+            self.character.say("Auto-play ON - Memes mode")
         self._auto_counter = 0
     
     # ============================================
@@ -525,7 +602,7 @@ class MemeBotApp:
         print("=" * 60)
         print("              MEMEBOT IS RUNNING!")
         print("=" * 60)
-        print("  CLICK anywhere to play memes")
+        print("  CLICK anywhere to play memes (or words if auto-play OFF)")
         print("  DOUBLE-CLICK to hear voice greeting")
         print("  RIGHT-CLICK for sounds")
         print("  Ctrl+M = Open Mod Menu")
@@ -535,25 +612,17 @@ class MemeBotApp:
         print("  T=random sentence  Y=chatter")
         print("  Dance: 1=worm 2=moonwalk 3=thriller 4=robot 5=disco")
         print("  Water Survival: W (avoid rising water & meteors!)")
-        print("  Space/X = Toggle auto-play")
+        print("  Space/X = Toggle auto-play (ON=memes, OFF=words only)")
         print("  ESC = Exit")
         print("=" * 60)
         
-        # Start auto-play
         interval = self.config.get("auto_play_interval", 15)
         if interval > 0:
             self._schedule_auto_play(interval)
         
-        # Start idle chatter
         self._schedule_idle_chatter(45)
-        
-        # Start animation
         self._animate()
-        
-        # Play startup greeting after 2 seconds
         self.root.after(2000, self._startup_greeting)
-        
-        # Start tkinter main loop
         self.root.mainloop()
     
     def stop(self):
@@ -565,7 +634,6 @@ class MemeBotApp:
         self.gif_player.hide()
         self.mod_menu.hide()
         
-        # Unload all addons and extensions
         for name in self.addon_manager.active_addons[:]:
             self.addon_manager.unload_addon(name)
         for name in self.addon_manager.active_extensions[:]:
@@ -610,7 +678,6 @@ def main():
     print()
     
     try:
-        # Get the directory where app.py is located
         base_path = os.path.dirname(os.path.abspath(__file__))
         app = MemeBotApp(base_path)
         app.start()
