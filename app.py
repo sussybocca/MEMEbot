@@ -3,61 +3,8 @@ MEMEBOT - Main Entry Point
 Modular desktop character system with Lua skin support, Addons & Extensions
 """
 
-import os
-import sys
-import threading
-import time
-import importlib
-import random
-import wave
-
-# Add Src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'Src'))
-
-import tkinter as tk
-import pygame
-
-# Import all modular components using importlib for hyphenated folder names
-ConfigModule = importlib.import_module('Config.config')
-MemeBotConfig = ConfigModule.MemeBotConfig
-
-CharacterModule = importlib.import_module('Character-Drawing.2D.character_renderer')
-CharacterRenderer = CharacterModule.CharacterRenderer
-
-AudioPlayerModule = importlib.import_module('Player.AudioPlayer.audio_player')
-AudioPlayer = AudioPlayerModule.AudioPlayer
-
-VoiceModule = importlib.import_module('Audio.voice_manager')
-VoiceManager = VoiceModule.VoiceManager
-
-MediaModule = importlib.import_module('Media.media_manager')
-MediaManager = MediaModule.MediaManager
-
-VideoModule = importlib.import_module('Player.VideoPlayer.video_player')
-VideoPlayerWindow = VideoModule.VideoPlayerWindow
-
-GifModule = importlib.import_module('Player.GifPlayer.gif_player')
-GifPlayer = GifModule.GifPlayer
-
-TrayModule = importlib.import_module('UI.tray_controller')
-TrayController = TrayModule.TrayController
-
-ModMenuModule = importlib.import_module('UI.mod_menu')
-ModMenu = ModMenuModule.ModMenu
-
-SkinModule = importlib.import_module('Skin.skin_loader')
-SkinLoader = SkinModule.SkinLoader
-
-# Addon & Extension Manager
-AddonManagerModule = importlib.import_module('Addons.addon_manager')
-AddonManager = AddonManagerModule.AddonManager
-
-# System tray check
-try:
-    import pystray
-    HAS_PYSTRAY = True
-except ImportError:
-    HAS_PYSTRAY = False
+from imports import *
+from Src.vocab import build_vocabulary
 
 
 class MemeBotApp:
@@ -97,13 +44,9 @@ class MemeBotApp:
         self.video_player = VideoPlayerWindow(self.root, self.config)
         self.gif_player = GifPlayer(self.root, self.config)
         
-        # Mod menu (create AFTER character so it can reference it)
         self.mod_menu = ModMenu(self.root, self.config, self.skin_loader, self)
-        
-        # Addon & Extension Manager (create AFTER mod_menu for Lua access)
         self.addon_manager = AddonManager(self.config, self)
         
-        # Dedicated voice channel for word playback (prevents overriding)
         self._voice_channel = None
         
         # State
@@ -116,218 +59,12 @@ class MemeBotApp:
         self._speech_lock = threading.Lock()
         self._current_audio_type = None
         
-        # Vocabulary / sentence building
-        self._build_vocabulary()
+        # Build vocabulary from vocab.py
+        build_vocabulary(self)
         
-        # Setup bindings and tray
         self._setup_bindings()
         if HAS_PYSTRAY:
             self.tray = TrayController(self)
-    
-    def _build_vocabulary(self):
-        """Build sentence templates from available voice files"""
-        self.available_words = []
-        if os.path.exists(self.config.VOICE_PATH):
-            for f in os.listdir(self.config.VOICE_PATH):
-                if f.lower().endswith('.wav'):
-                    word = os.path.splitext(f)[0]
-                    self.available_words.append(word)
-        
-        print(f"[VOCAB] Loaded {len(self.available_words)} words: {', '.join(sorted(self.available_words))}")
-        
-        # Greeting templates – using new words naturally
-        self.greetings = [
-            "hello welcome to memebot",
-            "hey whats crackin bro",
-            "heya friend",
-            "bonjour",
-            "greetings human",
-            "well hello there dude",
-            "hi hows it going",
-            "hello im back",
-            "hey youre back",
-            "heya whats up bro",
-            "well hello",
-            "greetings friend",
-            "hi there",
-            "hello human",
-            "hey friend",
-            "yo whats good",
-            "heya whatsup",
-            "yo hello memebot here",
-            "hey dude welcome",
-            "hello and welcome",
-            "whats up my friend",
-            "good to see you",
-            "yo greetings",
-            "hello fire friend",
-            "good day human",
-            "well hello space traveler",
-            "greetings from memebot",
-        ]
-        
-        # Random sentences – lots of variety with new words
-        self.sentences = [
-            "im so happy today",
-            "what a beautiful day",
-            "ive been waiting for you",
-            "im ready for anything",
-            "thats what im talking about",
-            "you see that",
-            "watch me",
-            "looking good today",
-            "some fun for you",
-            "im going to have fun",
-            "well thats beautiful",
-            "so happy to see you",
-            "whats going on today",
-            "im ready for fun",
-            "thats beautiful",
-            "looking for fun",
-            "ive been waiting",
-            "watch this",
-            "you see me",
-            "what a day",
-            # new with added words
-            "yo thats fire bro",
-            "dude thats so fire",
-            "what a good day",
-            "looking good my friend",
-            "im ready for space",
-            "watch the space",
-            "whats up dude",
-            "thats a good meme",
-            "fire in the sky",
-            "space is so beautiful",
-            "bro you see that",
-            "im so ready bro",
-            "good to be back",
-            "whats good today",
-            "dude im back",
-            "yo welcome back",
-            "im going to space",
-            "the space is calling",
-            "fire alert fire",
-            "bro thats awesome",
-            "what a beautiful space",
-            "looking fire today",
-            "some fun in space",
-            "yeah im ready",
-            "yeah thats right",
-            "yo check this out",
-            "good vibrations",
-            "dude what a day",
-            "bro whats good",
-            "space the final frontier",
-            "fire in the hole",
-            "what a fire show",
-            "im so ready for space",
-            "yeah looking good",
-            "good to see you friend",
-        ]
-        
-        # Meme reactions – some with DF/DFL gibberish
-        self.meme_reactions = [
-            "watch this",
-            "thats so funny",
-            "im ready for this",
-            "you see that",
-            "what a meme",
-            "looking good",
-            "ive been waiting for this",
-            "some fun",
-            "whats this",
-            "watch me",
-            "bro thats fire",
-            "dude this meme is fire",
-            "yo thats hilarious",
-            "DF DFL what a meme",
-            "DFL DF so funny",
-            "space meme activate",
-            "fire meme incoming",
-            "watch this bro",
-            "yeah thats the meme",
-            "good meme right there",
-            "what a fire meme",
-            "this is DF level meme",
-            "DFL DFL meme alert",
-        ]
-        
-        # Video reactions
-        self.video_reactions = [
-            "watch this",
-            "im ready for video",
-            "you see that",
-            "looking good",
-            "what a video",
-            "ive been waiting",
-            "some fun",
-            "watch me",
-            "bro check this video",
-            "yo this video is fire",
-            "space video time",
-            "good video coming up",
-            "dude watch this",
-            "yeah lets go",
-            "fire video alert",
-            "DF video mode",
-            "DFL what a video",
-            "what a good video",
-        ]
-        
-        # GIF reactions
-        self.gif_reactions = [
-            "watch this",
-            "thats so funny",
-            "you see that",
-            "looking good",
-            "what a gif",
-            "some fun",
-            "watch me",
-            "bro this gif is fire",
-            "yo gif time",
-            "space gif incoming",
-            "good gif bro",
-            "dude check the gif",
-            "yeah gif",
-            "DF gif moment",
-            "DFL DFL gif",
-            "fire gif alert",
-        ]
-        
-        # Idle chatter – casual and varied
-        self.idle_chatter = [
-            "im so happy",
-            "what a beautiful day",
-            "ive been waiting",
-            "im ready for anything",
-            "looking good",
-            "some fun today",
-            "well hello",
-            "so happy",
-            "whats going on",
-            "thats beautiful",
-            "yo whats good",
-            "dude im chilling",
-            "bro this is nice",
-            "feeling good today",
-            "space is cool",
-            "fire vibes only",
-            "yeah man",
-            "good day huh",
-            "what a fire day",
-            "DF DFL random",
-            "DFL space thoughts",
-            "just floating in space",
-            "bro you know",
-            "dude its a good day",
-            "yeah im here",
-            "hello space",
-            "whatsup world",
-            "good to be alive",
-            "fire thoughts",
-            "DFL DF chatter",
-        ]
     
     def _get_wav_duration(self, filepath):
         """Get duration of a WAV file in seconds"""
@@ -347,28 +84,20 @@ class MemeBotApp:
         self._current_audio_type = 'voice'
         
         try:
-            # Use pygame.mixer.Sound with dedicated channel to prevent overriding
             sound = pygame.mixer.Sound(voice_file)
             
-            # Reserve a dedicated channel for voice (channel 0)
             if self._voice_channel is None:
                 self._voice_channel = pygame.mixer.Channel(0)
             
-            # Stop anything currently on the voice channel
             self._voice_channel.stop()
-            
-            # Play the sound on the dedicated voice channel
             self._voice_channel.play(sound)
             
-            # Wait for the sound to actually finish playing on the channel
             while self._voice_channel.get_busy() and self.is_running:
                 time.sleep(0.02)
             
-            # Small gap between words
             time.sleep(0.12)
             
         except Exception as e:
-            # Fallback: use audio_player with duration-based waiting
             print(f"[VOICE] pygame Sound failed, using fallback: {e}")
             duration = self._get_wav_duration(voice_file)
             self.audio_player.play(voice_file)
@@ -760,10 +489,6 @@ class MemeBotApp:
         
         os._exit(0)
 
-
-# ============================================
-# Main entry point
-# ============================================
 
 def main():
     """Start MEMEBOT"""
